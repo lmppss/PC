@@ -2,3 +2,5 @@ numpy
 ipywidgets
 joblib
 streamlit
+scikit-learn
+
