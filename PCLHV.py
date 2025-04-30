@@ -123,16 +123,21 @@ if not historial.empty:
 
     # Mostrar gráfico
     st.subheader("📈 Historial de Predicciones")
-    fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
-                 size="Cenizas", color="Cenizas",
-                 color_continuous_scale="RdYlBu_r",  # Escala invertida: caliente (bajo) arriba, frío (alto) abajo
-,
-                     hover_data=["Cenizas", "PC"],
-                     title="Predicciones de Poder Calorífico vs Cenizas",
-                     labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-                     template="plotly_dark")
-    fig.update_traces(mode="markers+lines")
-    st.plotly_chart(fig, use_container_width=True)
+    fig = px.scatter(
+    historial_filtrado,
+    x="FechaHora",
+    y="PC",
+    size="Cenizas",
+    color="Cenizas",
+    color_continuous_scale="RdYlBu_r",  # Escala de calor invertida
+    hover_data=["Cenizas", "PC"],
+    title="Predicciones de Poder Calorífico vs Cenizas",
+    labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
+    template="plotly_dark"
+)
+fig.update_traces(mode="markers+lines")
+st.plotly_chart(fig, use_container_width=True)
+
 
     # Cuadro resumen editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
