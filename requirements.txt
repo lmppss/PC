@@ -1,6 +1,8 @@
 numpy
+pandas
 ipywidgets
 joblib
 streamlit
 scikit-learn
-
+plotly
+pytz
