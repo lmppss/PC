@@ -135,3 +135,23 @@ if not historial.empty:
             st.rerun()
         else:
             st.warning("No se seleccionaron filas para eliminar.")
+
+# Descargar historial como archivo Excel
+st.subheader("📥 Descargar historial completo")
+historial_excel = historial.copy()
+historial_excel["FechaHora"] = historial_excel["FechaHora"].dt.strftime('%Y-%m-%d %H:%M:%S')  # Formato legible
+
+# Guardar en memoria como Excel
+from io import BytesIO
+output = BytesIO()
+with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    historial_excel.to_excel(writer, index=False, sheet_name='Historial')
+    writer.save()
+    output.seek(0)
+
+st.download_button(
+    label="📤 Descargar Excel",
+    data=output,
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
