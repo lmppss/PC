@@ -22,11 +22,8 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 
 # Ruta del historial
 historial_path = "historial_predicciones.csv"
-columnas = ["FechaHora", "Cenizas", "SiO2", "Al2O3", "Fe2O3", "CaO", "MgO", "SO3", "Na2O", "K2O", "S_Carbón", "Cl_Carbón", "PC"]
-
-# Crear historial si no existe
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=columnas).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC"]).to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
@@ -76,24 +73,13 @@ if st.button("🔮 Predecir Poder Calorífico"):
     # Mostrar resultado
     st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
 
-    # Guardar todos los valores + resultado
+    # Guardar predicción
     nueva_fila = pd.DataFrame([{
         "FechaHora": datetime.datetime.now(pytz.timezone('America/Lima')).strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
-        "SiO2": valores[1],
-        "Al2O3": valores[2],
-        "Fe2O3": valores[3],
-        "CaO": valores[4],
-        "MgO": valores[5],
-        "SO3": valores[6],
-        "Na2O": valores[7],
-        "K2O": valores[8],
-        "S_Carbón": valores[9],
-        "Cl_Carbón": valores[10],
         "PC": pc_entero
     }])
-
-    historial = pd.concat([historial, nueva_fila], ignore_index=True)
+    historial = pd.concat([historial, nueva_fila], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Convertir fecha y filtrar últimos 3 días
@@ -113,7 +99,7 @@ fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
 fig.update_traces(mode="markers+lines")
 st.plotly_chart(fig, use_container_width=True)
 
-# Tabla resumen con eliminación
+# Tabla editable con opción de eliminar
 st.subheader("📋 Cuadro resumen de predicciones")
 historial_reset = historial.reset_index(drop=True)
 row_to_delete = st.multiselect("Selecciona las filas que deseas eliminar:", historial_reset.index.tolist())
