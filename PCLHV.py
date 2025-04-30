@@ -43,55 +43,52 @@ if st.button("📝 Mostrar entrada manual"):
 
 # Mostrar campos si está activado
 if st.session_state.mostrar_manual:
-    cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0, step=0.01)
-    sio2 = st.number_input("SiO2 ash (%)", min_value=0.0, step=0.01)
-    al2o3 = st.number_input("Al2O3 ash (%)", min_value=0.0, step=0.01)
-    fe2o3 = st.number_input("Fe2O3 ash (%)", min_value=0.0, step=0.01)
-    cao = st.number_input("CaO ash (%)", min_value=0.0, step=0.01)
-    mgo = st.number_input("MgO ash (%)", min_value=0.0, step=0.01)
-    so3 = st.number_input("SO3 ash (%)", min_value=0.0, step=0.01)
-    na2o = st.number_input("Na2O ash (%)", min_value=0.0, step=0.01)
-    k2o = st.number_input("K2O ash (%)", min_value=0.0, step=0.01)
-    s_carbon = st.number_input("S carbón (%)", min_value=0.0, step=0.01)
-    cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0, step=0.01)
+    cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0)
+    sio2 = st.number_input("SiO2 ash (%)", min_value=0.0)
+    al2o3 = st.number_input("Al2O3 ash (%)", min_value=0.0)
+    fe2o3 = st.number_input("Fe2O3 ash (%)", min_value=0.0)
+    cao = st.number_input("CaO ash (%)", min_value=0.0)
+    mgo = st.number_input("MgO ash (%)", min_value=0.0)
+    so3 = st.number_input("SO3 ash (%)", min_value=0.0)
+    na2o = st.number_input("Na2O ash (%)", min_value=0.0)
+    k2o = st.number_input("K2O ash (%)", min_value=0.0)
+    s_carbon = st.number_input("S carbón (%)", min_value=0.0)
+    cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
 
 # Función para verificar si los datos son válidos
 def validar_entrada(entrada):
-    # Verificar si hay datos vacíos o caracteres no numéricos
-    if entrada == "" or not all(c.isdigit() or c == '.' for c in entrada.replace(",", ".")):
+    # Reemplazar las comas por puntos si es necesario
+    entrada = entrada.replace(",", ".")
+
+    # Verificar si la entrada está vacía o contiene caracteres no numéricos
+    if entrada == "":
+        return False
+    try:
+        valores = list(map(float, entrada.strip().split()))
+        if len(valores) != 11:
+            return False
+    except ValueError:
         return False
     return True
 
 # Botón de predicción
 if st.button("🔮 Predecir Poder Calorífico"):
     if entrada_linea:
-        if "," in entrada_linea:
-            sep = ","
-        elif "\t" in entrada_linea:
-            sep = "\t"
-        else:
-            sep = " "
-
-        # Validación del formato
         if not validar_entrada(entrada_linea):
-            st.error("⚠️ La entrada contiene caracteres inválidos o está vacía.")
+            st.error("⚠️ El formato de la entrada es incorrecto. Asegúrese de ingresar 11 valores numéricos.")
             st.stop()
 
+        sep = "," if "," in entrada_linea else "\t" if "\t" in entrada_linea else " "
         try:
             valores = list(map(float, entrada_linea.strip().split(sep)))
             if len(valores) != 11:
                 st.error("⚠️ Debe ingresar exactamente 11 valores.")
                 st.stop()
-        except ValueError:
-            st.error("⚠️ Error en el formato de la línea pegada. Asegúrese de que sean solo números.")
+        except:
+            st.error("⚠️ Error en el formato de la línea pegada.")
             st.stop()
     else:
-        # Validar las entradas manuales
         valores = [cenizas_bs, sio2, al2o3, fe2o3, cao, mgo, so3, na2o, k2o, s_carbon, cl_carbon]
-
-        if any(v == 0.0 for v in valores):  # Si alguna entrada es 0 (vacía)
-            st.error("⚠️ Todos los campos deben ser completados con valores mayores que cero.")
-            st.stop()
 
     valores_np = np.array(valores).reshape(1, -1)
     pc_predicho = modelo.predict(valores_np)[0]
