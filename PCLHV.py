@@ -15,6 +15,7 @@ import datetime
 import pytz
 import plotly.express as px
 import os
+from io import BytesIO
 
 # Cargar el modelo .pkl
 modelo = joblib.load("PC_0.8722_12.04.pkl")
@@ -118,9 +119,7 @@ if not historial.empty:
 
     # Cuadro resumen editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = pd.read_csv(historial_path)
-
-    # Agregar una columna para marcar cuál eliminar
+    historial_df = pd.read_csv(historial_path)[["FechaHora", "Cenizas", "PC"]]  # Filtrar columnas esperadas
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
@@ -134,3 +133,16 @@ if not historial.empty:
             st.rerun()
         else:
             st.warning("No se seleccionaron filas para eliminar.")
+
+    # Botón para descargar todo el historial
+    st.subheader("📥 Descargar historial completo")
+    df_completo = pd.read_csv(historial_path)
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    st.download_button(
+        label="📄 Descargar en Excel",
+        data=buffer.getvalue(),
+        file_name="historial_predicciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
