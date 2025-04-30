@@ -83,11 +83,13 @@ if st.button("🔮 Predecir Poder Calorífico"):
     st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
 
     # Guardar en historial
-    ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
-    nuevo = pd.DataFrame([{
-        "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
-        "Cenizas": valores[0],
-        "PC": pc_entero
+        columnas = ["Cenizas (BS) (%)", "SiO2 ash (%)", "Al2O3 ash (%)", "Fe2O3 ash (%)", "CaO ash (%)",
+                "MgO ash (%)", "SO3 ash (%)", "Na2O ash (%)", "K2O ash (%)", "S carbón (%)", "Cl carbón (%)"]
+
+    nuevo = pd.DataFrame([valores], columns=columnas)
+    nuevo["PC"] = pc_entero
+    nuevo["FechaHora"] = ahora_lima.strftime('%Y-%m-%d %H:%M:%S')
+
     }])
     historial = pd.read_csv(historial_path)
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
