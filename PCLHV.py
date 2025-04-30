@@ -124,7 +124,9 @@ if not historial.empty:
     # Mostrar gráfico
     st.subheader("📈 Historial de Predicciones")
     fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
-                     size="Cenizas", color="Cenizas",
+                 size="Cenizas", color="Cenizas",
+                 color_continuous_scale="RdYlBu_r",  # Escala invertida: caliente (bajo) arriba, frío (alto) abajo
+,
                      hover_data=["Cenizas", "PC"],
                      title="Predicciones de Poder Calorífico vs Cenizas",
                      labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
