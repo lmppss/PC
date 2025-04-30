@@ -117,26 +117,56 @@ if not historial.empty:
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
     historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
 
-    # Filtrar últimos 3 días
-    fecha_3_dias_atras = pd.Timestamp.now(tz="America/Lima") - pd.Timedelta(days=3)
-    historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras]
+    # Ordenar y filtrar los últimos 20 registros
+    historial = historial.sort_values("FechaHora").tail(20)
 
-    # Mostrar gráfico
-    st.subheader("📈 Historial de Predicciones")
-    fig = px.scatter(
-        historial_filtrado,
-        x="FechaHora",
-        y="PC",
-        size="Cenizas",
-        color="Cenizas",
-        color_continuous_scale="RdYlBu_r",  # Escala de calor invertida (Rojo a Azul)
-        range_color=[11, 16],  # Rango de cenizas de 12 (arriba) a 16 (abajo)
-        hover_data=["Cenizas", "PC"],
-        title="Predicciones de Poder Calorífico vs Cenizas",
-        labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-        template="plotly_dark"
+    # Mostrar gráfico mejorado
+    st.subheader("📈 Historial de Predicciones (últimos 20)")
+
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    # Línea de tendencia (PC)
+    fig.add_trace(go.Scatter(
+        x=historial["FechaHora"],
+        y=historial["PC"],
+        mode="lines",
+        name="Tendencia PC",
+        line=dict(color="orange", width=2)
+    ))
+
+    # Puntos de predicción
+    fig.add_trace(go.Scatter(
+        x=historial["FechaHora"],
+        y=historial["PC"],
+        mode="markers",
+        name="Predicciones",
+        marker=dict(
+            size=historial["Cenizas"] * 2,
+            color=historial["PC"],
+            colorscale="YlOrRd",  # Colores calientes para valores altos
+            colorbar=dict(title="PC (kcal/kg)", len=0.75),
+            showscale=True,
+            line=dict(width=0.5, color='white')
+        ),
+        text=[
+            f"PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
+            for pc, cen in zip(historial["PC"], historial["Cenizas"])
+        ],
+        hoverinfo="text"
+    ))
+
+    # Layout del gráfico
+    fig.update_layout(
+        title="Poder Calorífico vs Fecha (últimos 20 registros)",
+        xaxis_title="Fecha y Hora",
+        yaxis_title="Poder Calorífico (kcal/kg)",
+        template="plotly_dark",
+        hovermode="closest",
+        height=500
     )
-    fig.update_traces(mode="markers+lines")
+
     st.plotly_chart(fig, use_container_width=True)
 
     # Cuadro resumen editable
