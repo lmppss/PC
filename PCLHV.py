@@ -112,36 +112,22 @@ if st.button("🔮 Predecir Poder Calorífico"):
     fig.update_traces(mode="markers+lines")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Mostrar historial de predicciones
-    st.subheader("📜 Historial de Predicciones")
-    st.dataframe(historial_filtrado)
+    # Entrada para eliminar un punto
+    st.subheader("🧹 Eliminar un punto del gráfico")
+    indice_a_eliminar = st.number_input("Ingrese el índice del punto a eliminar", min_value=0, max_value=len(historial)-1)
+    if st.button("Eliminar punto"):
+        if indice_a_eliminar is not None:
+            historial = historial.drop(historial.index[indice_a_eliminar])
+            historial.to_csv(historial_path, index=False)
+            st.success("✅ Punto eliminado correctamente.")
 
-    # Verificar si el historial está vacío
-    if len(historial_filtrado) > 0:
-        # Seleccionar índice para eliminar
-        indice_a_eliminar = st.number_input("Ingrese el índice del punto a eliminar",
-                                            min_value=0,
-                                            max_value=len(historial_filtrado)-1,
-                                            label="Índice del punto a eliminar")
+        # Mostrar el gráfico actualizado
+        fig = px.scatter(historial, x="FechaHora", y="PC",
+                         size="Cenizas", color="Cenizas",
+                         hover_data=["Cenizas", "PC"],
+                         title="Predicciones de Poder Calorífico vs Cenizas",
+                         labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
+                         template="plotly_dark")
 
-        # Botón para eliminar el punto seleccionado
-        if st.button("🗑️ Eliminar punto del historial"):
-            if 0 <= indice_a_eliminar < len(historial_filtrado):
-                historial_filtrado = historial_filtrado.drop(historial_filtrado.index[indice_a_eliminar])
-                historial_filtrado.to_csv(historial_path, index=False)
-                st.success(f"✅ Punto en el índice {indice_a_eliminar} eliminado correctamente.")
-
-                # Mostrar el gráfico actualizado
-                fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
-                                 size="Cenizas", color="Cenizas",
-                                 hover_data=["Cenizas", "PC"],
-                                 title="Predicciones de Poder Calorífico vs Cenizas",
-                                 labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-                                 template="plotly_dark")
-
-                fig.update_traces(mode="markers+lines")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.error("⚠️ El índice ingresado no es válido.")
-    else:
-        st.warning("⚠️ No hay predicciones en el historial para eliminar.")
+        fig.update_traces(mode="markers+lines")
+        st.plotly_chart(fig, use_container_width=True)
