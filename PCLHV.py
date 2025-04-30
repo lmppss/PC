@@ -129,8 +129,7 @@ if not historial.empty:
         y="PC",
         size="Cenizas",
         color="Cenizas",
-        color_continuous_scale="Blues",  # Escala de color azul
-        range_color=[16, 12],  # Escala invertida
+        color_continuous_scale="RdYlBu_r",  # Escala de calor invertida
         hover_data=["Cenizas", "PC"],
         title="Predicciones de Poder Calorífico vs Cenizas",
         labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
