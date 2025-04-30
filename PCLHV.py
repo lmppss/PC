@@ -110,23 +110,3 @@ if not historial.empty:
                      template="plotly_dark")
     fig.update_traces(mode="markers+lines")
     st.plotly_chart(fig, use_container_width=True)
-
-    # Eliminar punto
-    st.subheader("🧹 Eliminar un punto del gráfico")
-    indice_a_eliminar = st.number_input("Ingrese el índice del punto a eliminar", min_value=0, max_value=len(historial)-1, step=1)
-    if st.button("Eliminar punto"):
-        historial = historial.drop(historial.index[indice_a_eliminar])
-        historial.to_csv(historial_path, index=False)
-        st.success("✅ Punto eliminado correctamente.")
-
-        # Redibujar gráfico
-        historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-        historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
-        fig = px.scatter(historial, x="FechaHora", y="PC",
-                         size="Cenizas", color="Cenizas",
-                         hover_data=["Cenizas", "PC"],
-                         title="Predicciones de Poder Calorífico vs Cenizas",
-                         labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-                         template="plotly_dark")
-        fig.update_traces(mode="markers+lines")
-        st.plotly_chart(fig, use_container_width=True)
