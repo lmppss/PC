@@ -52,7 +52,6 @@ if mostrar_entrada_manual:
 # Botón de predicción
 if st.button("🔮 Predecir Poder Calorífico"):
     if entrada_linea:
-        # Detectar separador
         if "," in entrada_linea:
             sep = ","
         elif "\t" in entrada_linea:
@@ -78,8 +77,9 @@ if st.button("🔮 Predecir Poder Calorífico"):
     st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
 
     # Guardar en historial
+    ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
     nuevo = pd.DataFrame([{
-        "FechaHora": datetime.datetime.now(pytz.timezone('America/Lima')).strftime('%Y-%m-%d %H:%M:%S'),  # Hora de Perú, formato string
+        "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero
     }])
@@ -87,18 +87,18 @@ if st.button("🔮 Predecir Poder Calorífico"):
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
-    # Filtrar los datos de los últimos 3 días
-    fecha_3_dias_atras = datetime.datetime.now(pytz.timezone('America/Lima')) - datetime.timedelta(days=3)
+# Leer historial completo
+historial = pd.read_csv(historial_path)
 
-    # Convertir 'FechaHora' a tipo datetime (sin modificar el formato, solo convertir la zona horaria)
+# Si hay historial, proceder con el gráfico
+if not historial.empty:
+    # Convertir a datetime con zona horaria Lima
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-    historial["FechaHora"] = historial["FechaHora"].dt.tz_localize('UTC').dt.tz_convert('America/Lima')  # Convertir a la zona horaria de Perú
+    historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
 
-    # Asegurarse de que 'fecha_3_dias_atras' también esté en formato datetime
-    fecha_3_dias_atras = pd.to_datetime(fecha_3_dias_atras)
-
-    # Filtrar los datos de los últimos 3 días
-    historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras] if not historial.empty else historial
+    # Filtrar últimos 3 días
+    fecha_3_dias_atras = pd.Timestamp.now(tz="America/Lima") - pd.Timedelta(days=3)
+    historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras]
 
     # Mostrar gráfico
     st.subheader("📈 Historial de Predicciones")
@@ -108,26 +108,25 @@ if st.button("🔮 Predecir Poder Calorífico"):
                      title="Predicciones de Poder Calorífico vs Cenizas",
                      labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
                      template="plotly_dark")
-
     fig.update_traces(mode="markers+lines")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Entrada para eliminar un punto
+    # Eliminar punto
     st.subheader("🧹 Eliminar un punto del gráfico")
-    indice_a_eliminar = st.number_input("Ingrese el índice del punto a eliminar", min_value=0, max_value=len(historial)-1)
+    indice_a_eliminar = st.number_input("Ingrese el índice del punto a eliminar", min_value=0, max_value=len(historial)-1, step=1)
     if st.button("Eliminar punto"):
-        if indice_a_eliminar is not None:
-            historial = historial.drop(historial.index[indice_a_eliminar])
-            historial.to_csv(historial_path, index=False)
-            st.success("✅ Punto eliminado correctamente.")
+        historial = historial.drop(historial.index[indice_a_eliminar])
+        historial.to_csv(historial_path, index=False)
+        st.success("✅ Punto eliminado correctamente.")
 
-        # Mostrar el gráfico actualizado
+        # Redibujar gráfico
+        historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+        historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
         fig = px.scatter(historial, x="FechaHora", y="PC",
                          size="Cenizas", color="Cenizas",
                          hover_data=["Cenizas", "PC"],
                          title="Predicciones de Poder Calorífico vs Cenizas",
                          labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
                          template="plotly_dark")
-
         fig.update_traces(mode="markers+lines")
         st.plotly_chart(fig, use_container_width=True)
