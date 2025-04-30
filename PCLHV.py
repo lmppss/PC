@@ -55,30 +55,15 @@ if st.session_state.mostrar_manual:
     s_carbon = st.number_input("S carbón (%)", min_value=0.0)
     cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
 
-# Función para verificar si los datos son válidos
-def validar_entrada(entrada):
-    # Reemplazar las comas por puntos si es necesario
-    entrada = entrada.replace(",", ".")
-
-    # Verificar si la entrada está vacía o contiene caracteres no numéricos
-    if entrada == "":
-        return False
-    try:
-        valores = list(map(float, entrada.strip().split()))
-        if len(valores) != 11:
-            return False
-    except ValueError:
-        return False
-    return True
-
 # Botón de predicción
 if st.button("🔮 Predecir Poder Calorífico"):
     if entrada_linea:
-        if not validar_entrada(entrada_linea):
-            st.error("⚠️ El formato de la entrada es incorrecto. Asegúrese de ingresar 11 valores numéricos.")
-            st.stop()
-
-        sep = "," if "," in entrada_linea else "\t" if "\t" in entrada_linea else " "
+        if "," in entrada_linea:
+            sep = ","
+        elif "\t" in entrada_linea:
+            sep = "\t"
+        else:
+            sep = " "
         try:
             valores = list(map(float, entrada_linea.strip().split(sep)))
             if len(valores) != 11:
@@ -128,7 +113,8 @@ if not historial.empty:
                      hover_data=["Cenizas", "PC"],
                      title="Predicciones de Poder Calorífico vs Cenizas",
                      labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-                     template="plotly_dark")
+                     template="plotly_dark",
+                     color_continuous_scale="RdYlBu_r")  # Escala de color invertida
     fig.update_traces(mode="markers+lines")
     st.plotly_chart(fig, use_container_width=True)
 
