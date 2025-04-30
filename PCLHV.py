@@ -8,139 +8,34 @@ Original file is located at
 """
 
 import streamlit as st
-import numpy as np
 import pandas as pd
-import joblib
-import datetime
-import pytz
-import plotly.express as px
 import os
-
-# Cargar el modelo .pkl con el nombre correcto
-modelo = joblib.load("PC_0.8722_12.04.pkl")
 
 # Archivo temporal para guardar predicciones
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
     pd.DataFrame(columns=["FechaHora", "Cenizas", "PC"]).to_csv(historial_path, index=False)
 
-# Título de la app
-st.title("🔥 Predicción del Poder Calorífico del Carbón")
-st.markdown("Ingrese los datos manualmente o pegue una fila completa separada por **coma, espacio o tabulación**.")
-
-# Opción de entrada rápida
-st.subheader("📋 Entrada rápida (una línea completa)")
-entrada_linea = st.text_input("Pegue aquí una fila completa con los 11 valores en orden:")
-
-# Inicializa la variable en session_state si no existe
-if "mostrar_manual" not in st.session_state:
-    st.session_state.mostrar_manual = False
-
-# Botón para activar/desactivar entrada manual
-if st.button("📝 Mostrar entrada manual"):
-    st.session_state.mostrar_manual = not st.session_state.mostrar_manual
-
-# Mostrar campos si está activado
-if st.session_state.mostrar_manual:
-    cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0)
-    sio2 = st.number_input("SiO2 ash (%)", min_value=0.0)
-    al2o3 = st.number_input("Al2O3 ash (%)", min_value=0.0)
-    fe2o3 = st.number_input("Fe2O3 ash (%)", min_value=0.0)
-    cao = st.number_input("CaO ash (%)", min_value=0.0)
-    mgo = st.number_input("MgO ash (%)", min_value=0.0)
-    so3 = st.number_input("SO3 ash (%)", min_value=0.0)
-    na2o = st.number_input("Na2O ash (%)", min_value=0.0)
-    k2o = st.number_input("K2O ash (%)", min_value=0.0)
-    s_carbon = st.number_input("S carbón (%)", min_value=0.0)
-    cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
-
-# Botón de predicción
-if st.button("🔮 Predecir Poder Calorífico"):
-    if entrada_linea:
-        if "," in entrada_linea:
-            sep = ","
-        elif "\t" in entrada_linea:
-            sep = "\t"
-        else:
-            sep = " "
-        try:
-            valores = list(map(float, entrada_linea.strip().split(sep)))
-            if len(valores) != 11:
-                st.error("⚠️ Debe ingresar exactamente 11 valores.")
-                st.stop()
-        except:
-            st.error("⚠️ Error en el formato de la línea pegada.")
-            st.stop()
-    else:
-        valores = [cenizas_bs, sio2, al2o3, fe2o3, cao, mgo, so3, na2o, k2o, s_carbon, cl_carbon]
-
-    valores_np = np.array(valores).reshape(1, -1)
-    pc_predicho = modelo.predict(valores_np)[0]
-    pc_entero = int(round(pc_predicho))
-
-    # Mostrar resultado
-    st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
-
-    # Guardar en historial
-    ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
-    nuevo = pd.DataFrame([{
-        "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
-        "Cenizas": valores[0],
-        "PC": pc_entero
-    }])
-    historial = pd.read_csv(historial_path)
-    historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
-    historial.to_csv(historial_path, index=False)
-
 # Leer historial completo
-historial = pd.read_csv(historial_path)
+historial_df = pd.read_csv(historial_path)
 
-# Si hay historial, proceder con el gráfico
-if not historial.empty:
-    # Convertir a datetime con zona horaria Lima
-    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-    historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
+# Si hay historial, proceder con la opción de eliminar
+if not historial_df.empty:
+    st.subheader("🗑️ Eliminar predicciones del historial")
 
-    # Filtrar últimos 3 días
-    fecha_3_dias_atras = pd.Timestamp.now(tz="America/Lima") - pd.Timedelta(days=3)
-    historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras]
-
-    # Filtrar valores nulos o no numéricos en "PC"
-    historial_filtrado = historial_filtrado[pd.to_numeric(historial_filtrado["PC"], errors='coerce').notnull()]
-
-    # Mostrar gráfico
-    st.subheader("📈 Historial de Predicciones")
-    fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
-                     size="Cenizas", color="Cenizas",
-                     hover_data=["Cenizas", "PC"],
-                     title="Predicciones de Poder Calorífico vs Cenizas",
-                     labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-                     template="plotly_dark")
-    fig.update_traces(mode="markers+lines")
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Cuadro resumen editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = pd.read_csv(historial_path)
-
-    # Agregar una columna para marcar cuál eliminar
-    historial_df["Eliminar"] = False
+    # Mostrar los primeros 20 registros en formato editable
+    historial_df["Eliminar"] = False  # Columna para marcar las filas a eliminar
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
     # Botón para eliminar filas marcadas
     if st.button("❌ Eliminar seleccionadas"):
         eliminadas = edited_df[edited_df["Eliminar"] == True]
         if not eliminadas.empty:
+            # Filtrar las filas no marcadas para mantenerlas
             historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+            # Guardar los cambios en el archivo
             historial_df.to_csv(historial_path, index=False)
             st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
+            st.rerun()  # Recargar la app para reflejar los cambios
         else:
             st.warning("No se seleccionaron filas para eliminar.")
-
-# Opción para descargar el historial completo en Excel
-st.subheader("📥 Descargar Historial Completo")
-if st.button("Descargar historial en Excel"):
-    historial_df = pd.read_csv(historial_path)
-    historial_df.to_excel("historial_completo.xlsx", index=False)
-    st.download_button(label="Descargar archivo", data=open("historial_completo.xlsx", "rb"), file_name="historial_completo.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
