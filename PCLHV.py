@@ -106,7 +106,7 @@ if not historial.empty:
     fecha_3_dias_atras = pd.Timestamp.now(tz="America/Lima") - pd.Timedelta(days=3)
     historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras]
 
-    # Mostrar gráfico
+  # Mostrar gráfico
 st.subheader("📈 Historial de Predicciones")
 fig = px.scatter(
     historial_filtrado,
@@ -118,41 +118,39 @@ fig = px.scatter(
     title="Predicciones de Poder Calorífico vs Cenizas",
     labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
     template="plotly_dark",
-    color_continuous_scale="RdYlBu",  # Escala inversa: caliente para cenizas bajas
+    color_continuous_scale="RdYlBu",  # Colores invertidos: rojo para cenizas bajas
     size_max=10  # Puntos más pequeños
 )
-
 fig.update_traces(mode="markers+lines")
-fig.update_layout(width=1000)  # Más ancho
+fig.update_layout(width=1000)  # Gráfico más ancho
 st.plotly_chart(fig, use_container_width=False)
 
+# Cuadro resumen editable
+st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+historial_df = pd.read_csv(historial_path)[["FechaHora", "Cenizas", "PC"]]
+historial_df["Eliminar"] = False
+edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-    # Cuadro resumen editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = pd.read_csv(historial_path)[["FechaHora", "Cenizas", "PC"]]  # Filtrar columnas esperadas
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+# Botón para eliminar filas marcadas
+if st.button("❌ Eliminar seleccionadas"):
+    eliminadas = edited_df[edited_df["Eliminar"] == True]
+    if not eliminadas.empty:
+        historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+        historial_df.to_csv(historial_path, index=False)
+        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+        st.rerun()
+    else:
+        st.warning("No se seleccionaron filas para eliminar.")
 
-    # Botón para eliminar filas marcadas
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
-
-    # Botón para descargar todo el historial
-    st.subheader("📥 Descargar historial completo")
-    df_completo = pd.read_csv(historial_path)
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_completo.to_excel(writer, index=False, sheet_name='Historial')
-    st.download_button(
-        label="📄 Descargar en Excel",
-        data=buffer.getvalue(),
-        file_name="historial_predicciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Botón para descargar todo el historial
+st.subheader("📥 Descargar historial completo")
+df_completo = pd.read_csv(historial_path)
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    df_completo.to_excel(writer, index=False, sheet_name='Historial')
+st.download_button(
+    label="📄 Descargar en Excel",
+    data=buffer.getvalue(),
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
