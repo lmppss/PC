@@ -32,11 +32,16 @@ st.markdown("Ingrese los datos manualmente o pegue una fila completa separada po
 st.subheader("📋 Entrada rápida (una línea completa)")
 entrada_linea = st.text_input("Pegue aquí una fila completa con los 11 valores en orden:")
 
-# Botón para activar la entrada manual
-mostrar_entrada_manual = st.button("📝 Mostrar entrada manual")
+# Inicializa la variable en session_state si no existe
+if "mostrar_manual" not in st.session_state:
+    st.session_state.mostrar_manual = False
 
-# Si se presiona el botón, se muestran los campos de entrada manual
-if mostrar_entrada_manual:
+# Botón para activar/desactivar entrada manual
+if st.button("📝 Mostrar entrada manual"):
+    st.session_state.mostrar_manual = not st.session_state.mostrar_manual
+
+# Mostrar campos si está activado
+if st.session_state.mostrar_manual:
     cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0)
     sio2 = st.number_input("SiO2 ash (%)", min_value=0.0)
     al2o3 = st.number_input("Al2O3 ash (%)", min_value=0.0)
@@ -48,6 +53,7 @@ if mostrar_entrada_manual:
     k2o = st.number_input("K2O ash (%)", min_value=0.0)
     s_carbon = st.number_input("S carbón (%)", min_value=0.0)
     cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
+
 
 # Botón de predicción
 if st.button("🔮 Predecir Poder Calorífico"):
