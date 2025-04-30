@@ -121,22 +121,23 @@ if not historial.empty:
     fecha_3_dias_atras = pd.Timestamp.now(tz="America/Lima") - pd.Timedelta(days=3)
     historial_filtrado = historial[historial["FechaHora"] >= fecha_3_dias_atras]
 
-    # Mostrar gráfico
-    st.subheader("📈 Historial de Predicciones")
-    fig = px.scatter(
-        historial_filtrado,
-        x="FechaHora",
-        y="PC",
-        size="Cenizas",
-        color="Cenizas",
-        color_continuous_scale="RdYlBu_r",  # Escala de calor invertida
-        hover_data=["Cenizas", "PC"],
-        title="Predicciones de Poder Calorífico vs Cenizas",
-        labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
-        template="plotly_dark"
-    )
-    fig.update_traces(mode="markers+lines")
-    st.plotly_chart(fig, use_container_width=True)
+   # Mostrar gráfico
+st.subheader("📈 Historial de Predicciones")
+fig = px.scatter(
+    historial_filtrado,
+    x="FechaHora",
+    y="PC",
+    size="Cenizas",
+    color="Cenizas",
+    color_continuous_scale="RdYlBu_r",  # Escala de calor invertida (RdYlBu_r: Rojo a Azul)
+    range_color=[16, 12],  # Asegurarse que el rango de cenizas sea 12 (arriba) a 16 (abajo)
+    hover_data=["Cenizas", "PC"],
+    title="Predicciones de Poder Calorífico vs Cenizas",
+    labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
+    template="plotly_dark"
+)
+fig.update_traces(mode="markers+lines")
+st.plotly_chart(fig, use_container_width=True)
 
     # Cuadro resumen editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
