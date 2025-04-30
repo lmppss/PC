@@ -100,17 +100,22 @@ if not historial.empty:
 
     st.subheader("📈 Historial de Predicciones")
 
-    # Graficar los últimos 20 registros
+        # Graficar los últimos 20 registros
     historial_filtrado = historial.tail(20)
 
-    fig = px.scatter(historial_filtrado, x="FechaHora", y="PC",
-                     size=np.repeat(10, len(historial_filtrado)),
+    fig = px.scatter(historial_filtrado,
+                     x="FechaHora",
+                     y="PC",
+                     size=np.repeat(10, len(historial_filtrado)),  # Tamaño ligeramente mayor
                      color="Cenizas",
-                     color_continuous_scale="RdYlBu_r",
+                     color_continuous_scale="RdYlBu_r",  # Mismo gradiente pero ya invertido
                      hover_data=["Cenizas", "PC"],
                      title="Predicciones de Poder Calorífico vs Cenizas",
                      labels={"PC": "Poder Calorífico (kcal/kg)", "FechaHora": "Hora"},
                      template="plotly_dark")
+
+    # Mostrar la gráfica
+    st.plotly_chart(fig, use_container_width=True)
 
     # Cambiar orientación de la barra de calor
     fig.update_layout(coloraxis_colorbar=dict(reversescale=True))
