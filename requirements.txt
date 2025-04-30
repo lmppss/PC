@@ -1,8 +1,9 @@
+streamlit
 numpy
 pandas
-ipywidgets
 joblib
-streamlit
-scikit-learn
 plotly
+openpyxl
+xlsxwriter
 pytz
+scikit-learn
