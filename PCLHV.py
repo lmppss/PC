@@ -121,65 +121,78 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# Mostrar tabla editable y calculada
-st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
-historial_df["Eliminar"] = False
+if not historial.empty:
+    st.subheader("📈 Historial de Predicciones (últimos 20)")
+    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+    historial = historial.sort_values("FechaHora").tail(20)
 
-# La tabla es editable para que puedas modificar el valor de 'PC real' directamente
-edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+    fig = go.Figure()
 
-# Cuando el valor de "PC real" cambia, la diferencia se actualiza automáticamente
-if "PC real" in edited_df.columns:
-    edited_df["Diferencia"] = edited_df["PC real"] - edited_df["PC"]
+    fig.add_trace(go.Scatter(
+        x=historial["FechaHora"],
+        y=historial["PC"],
+        mode="lines",
+        name="Tendencia PC",
+        line=dict(color="orange", width=2)
+    ))
 
-# Eliminar filas seleccionadas
-if st.button("❌ Eliminar seleccionadas"):
-    eliminadas = edited_df[edited_df["Eliminar"] == True]
-    if not eliminadas.empty:
-        historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-        historial_df.to_csv(historial_path, index=False)
-        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-        st.rerun()
-    else:
-        st.warning("No se seleccionaron filas para eliminar.")
+    fig.add_trace(go.Scatter(
+        x=historial["FechaHora"],
+        y=historial["PC"],
+        mode="markers",
+        name="Predicciones",
+        marker=dict(
+            size=historial["Cenizas"] * 2,
+            color=historial["PC"],
+            colorscale="YlOrRd",
+            colorbar=dict(title="PC (kcal/kg)", len=0.75),
+            showscale=True,
+            line=dict(width=0.5, color='white')
+        ),
+        text=[
+            f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
+            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
+        ],
+        hoverinfo="text"
+    ))
 
-# Descargar Excel
-st.subheader("📥 Descargar historial completo")
-df_completo = pd.read_csv(historial_path)
-buffer = BytesIO()
-with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-    df_completo.to_excel(writer, index=False, sheet_name='Historial')
-st.download_button(
-    label="📄 Descargar en Excel",
-    data=buffer.getvalue(),
-    file_name="historial_predicciones.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+    fig.update_layout(
+        title="Poder Calorífico vs Fecha (últimos 20 registros)",
+        xaxis_title="Fecha y Hora",
+        yaxis_title="Poder Calorífico (kcal/kg)",
+        template="plotly_dark",
+        hovermode="closest",
+        height=500
+    )
 
-# Graficar la dispersión
-st.subheader("📊 Gráfico de dispersión del Poder Calorífico")
-grafico = go.Figure()
+    st.plotly_chart(fig, use_container_width=True)
 
-grafico.add_trace(go.Scatter(
-    x=pd.to_datetime(historial["FechaHora"]),
-    y=historial["PC"],
-    mode="markers",
-    marker=dict(
-        size=10,
-        color=historial["Cenizas"],
-        colorscale="Viridis",
-        showscale=True,
-        colorbar=dict(title="Cenizas (%)")
-    ),
-    name="Poder Calorífico Predicho"
-))
+    # Tabla editable
+    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-grafico.update_layout(
-    title="Dispersión de Predicciones de Poder Calorífico",
-    xaxis_title="Fecha y Hora",
-    yaxis_title="Poder Calorífico (kcal/kg)",
-    template="plotly_dark"
-)
+    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
+    historial_df["Eliminar"] = False
+    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-st.plotly_chart(grafico)
+    if st.button("❌ Eliminar seleccionadas"):
+        eliminadas = edited_df[edited_df["Eliminar"] == True]
+        if not eliminadas.empty:
+            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+            historial_df.to_csv(historial_path, index=False)
+            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+            st.rerun()
+        else:
+            st.warning("No se seleccionaron filas para eliminar.")
+
+    # Descargar Excel
+    st.subheader("📥 Descargar historial completo")
+    df_completo = pd.read_csv(historial_path)
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    st.download_button(
+        label="📄 Descargar en Excel",
+        data=buffer.getvalue(),
+        file_name="historial_predicciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
