@@ -193,39 +193,27 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+    # Tabla con colores condicionales (sin edición)
+st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(
-    historial_df,
-    num_rows="dynamic",
-    use_container_width=True,
-    column_config={
-        "Diferencia": st.column_config.NumberColumn(
-            "Diferencia",
-            help="Diferencia entre PC real y PC predicho",
-            format="%.1f",
-            cell_style=lambda valor: (
-                "background-color: #ff4d4d;" if abs(valor) > 150 else
-                "background-color: #00cc66;" if abs(valor) <= 149 else
-                ""
-            ) if pd.notna(valor) else ""
-        )
-    }
-)
+historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
 
+# Función de color
+def colorear_diferencia(val):
+    if pd.isna(val):
+        return ''
+    elif abs(val) > 150:
+        return 'background-color: #ff4d4d'  # rojo
+    elif abs(val) <= 149:
+        return 'background-color: #00cc66'  # verde
+    return ''
 
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
+# Aplicar estilo
+styled_df = historial_df.style.applymap(colorear_diferencia, subset=['Diferencia'])
+
+# Mostrar
+st.dataframe(styled_df, use_container_width=True)
+
 
     # Descargar Excel
     st.subheader("📥 Descargar historial completo")
