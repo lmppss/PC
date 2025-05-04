@@ -23,7 +23,6 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    # Crear archivo vacío con las columnas adecuadas
     pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "PC real", "Analista"]).to_csv(historial_path, index=False)
 
 # Título
@@ -93,23 +92,34 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,  # "PC real" inicializado vacío
+        "PC real": None,  # Inicialmente vacío
         "Analista": analista
     }])
 
     # Cargar historial
     historial = pd.read_csv(historial_path)
 
-    # Asegurarse de que la columna "PC real" exista
+    # Asegurar que columnas necesarias existen
     if "PC real" not in historial.columns:
         historial["PC real"] = None
 
-    # Concatenar nueva predicción y actualizar el historial
+    # Concatenar nueva fila y guardar
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
+
+# Asegurar columnas
+if "PC real" not in historial.columns:
+    historial["PC real"] = None
+
+# Calcular error absoluto si hay PC real
+historial["Error absoluto"] = np.where(
+    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+    abs(historial["PC"] - pd.to_numeric(historial["PC real"], errors='coerce')),
+    np.nan
+)
 
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
@@ -157,11 +167,10 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla editable con columna "PC real"
+    # Tabla editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-    # Añadir columna editable de "PC real"
-    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Analista"]]
+    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Error absoluto", "Analista"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
