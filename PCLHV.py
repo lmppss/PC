@@ -93,29 +93,36 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,
+        "PC real": None,  # Inicialmente vacío
         "Analista": analista
     }])
 
+    # Cargar historial
     historial = pd.read_csv(historial_path)
+
+    # Asegurar que columnas necesarias existen
     if "PC real" not in historial.columns:
         historial["PC real"] = None
 
+    # Concatenar nueva fila y guardar
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
+
+# Asegurar columnas
 if "PC real" not in historial.columns:
     historial["PC real"] = None
 
+# Calcular diferencia si hay PC real
 historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
     pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
     np.nan
 )
 
-# Ingreso manual de PC real
+# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real con alerta
 st.subheader("📝 Ingresar PC real manualmente")
 
 fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
@@ -125,16 +132,21 @@ if fechas_disponibles:
     if st.button("📥 Cargar PC real"):
         if pc_real_input > 0:
             historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+
+            # Recalcular la diferencia
             historial["Diferencia"] = np.where(
                 pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                 pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                 np.nan
             )
+
+            # Verificar diferencia absoluta
             diferencia_actual = historial.loc[historial["FechaHora"] == fecha_seleccionada, "Diferencia"].values[0]
             if abs(diferencia_actual) > 150:
                 st.error(f"⚠️ Alerta: La diferencia entre el PC real y el predicho es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
             else:
                 st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+
             historial.to_csv(historial_path, index=False)
         else:
             st.warning("⚠️ Ingrese un valor válido para el PC real.")
@@ -192,18 +204,17 @@ if not historial.empty:
     historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
     historial_df["Eliminar"] = False
 
-    # NUEVA CONFIGURACIÓN DE AGGRID
+    # Configuración de AgGrid
     gb = GridOptionsBuilder.from_dataframe(historial_df)
     gb.configure_pagination(paginationAutoPageSize=True)
     gb.configure_default_column(editable=False, groupable=True)
-    gb.configure_column("Eliminar", checkboxSelection=True)
     gb.configure_selection(selection_mode="multiple", use_checkbox=True)
     grid_options = gb.build()
 
     grid_response = AgGrid(
         historial_df,
         gridOptions=grid_options,
-        update_mode=GridUpdateMode.MODEL_CHANGED,
+        update_mode=GridUpdateMode.NO_UPDATE,
         fit_columns_on_grid_load=True,
         theme='material',
         height=400,
@@ -211,26 +222,18 @@ if not historial.empty:
         reload_data=True
     )
 
-if st.button("❌ Eliminar seleccionadas"):
-    seleccionadas = grid_response["selected_rows"]
-    if len(seleccionadas) > 0:
-        fechas_a_eliminar = [
-            row["FechaHora"] for row in seleccionadas if isinstance(row, dict) and "FechaHora" in row
-        ]
-        if len(fechas_a_eliminar) > 0:
-            historial = historial[~historial["FechaHora"].isin(fechas_a_eliminar)]
+    # Botón de eliminación
+    if st.button("❌ Eliminar seleccionadas"):
+        seleccionadas = grid_response["selected_rows"]
+        if seleccionadas:
+            historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
             historial.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(fechas_a_eliminar)} predicciones.")
+            st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
             st.rerun()
         else:
-            st.warning("No se encontraron fechas válidas para eliminar.")
-    else:
-        st.warning("No se seleccionaron filas para eliminar.")
+            st.warning("No se seleccionaron filas para eliminar.")
 
-
-
-
-
+    # Descargar Excel
     st.subheader("📥 Descargar historial completo")
     df_completo = pd.read_csv(historial_path)
     buffer = BytesIO()
@@ -242,3 +245,27 @@ if st.button("❌ Eliminar seleccionadas"):
         file_name="historial_predicciones.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+reemplazar con esto:
+# Configuración de AgGrid con checkbox de selección habilitado
+gb = GridOptionsBuilder.from_dataframe(historial_df)
+gb.configure_pagination(paginationAutoPageSize=True)
+gb.configure_default_column(editable=False, groupable=True)
+
+# Habilitar checkbox en la columna "Eliminar"
+gb.configure_column("Eliminar", checkboxSelection=True)
+
+# Configurar el modo de selección
+gb.configure_selection(selection_mode="multiple", use_checkbox=True)
+grid_options = gb.build()
+
+# Mostrar la tabla
+grid_response = AgGrid(
+    historial_df,
+    gridOptions=grid_options,
+    update_mode=GridUpdateMode.MODEL_CHANGED,  # Asegura que los cambios se reflejen en el modelo
+    fit_columns_on_grid_load=True,
+    theme='material',
+    height=400,
+    width='100%',
+    reload_data=True
+)
