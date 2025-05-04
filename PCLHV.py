@@ -133,11 +133,14 @@ if st.button("💡 Ingresar PC real"):
             if pc_real_input:
                 # Actualizar el valor de "PC real" en el historial
                 historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+
+                # Recálculo de la diferencia
                 historial["Diferencia"] = np.where(
                     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                     pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                     np.nan
                 )
+
                 # Guardar el historial actualizado
                 historial.to_csv(historial_path, index=False)
                 st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
