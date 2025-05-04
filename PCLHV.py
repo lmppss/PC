@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "Analista"]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "PC real", "Analista"]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -92,6 +92,7 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
+        "PC real": None,  # "PC real" inicializado vacío
         "Analista": analista
     }])
 
@@ -104,40 +105,27 @@ historial = pd.read_csv(historial_path)
 
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
+    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+    historial = historial.sort_values("FechaHora").tail(20)
 
-    # Filtro por analista
-    analistas_disponibles = historial["Analista"].unique().tolist()
-    analistas_seleccionados = st.multiselect(
-        "🔍 Filtrar por analista:",
-        options=analistas_disponibles,
-        default=analistas_disponibles,
-        placeholder="Seleccione uno o varios analistas..."
-    )
-
-    # Aplicar filtro
-    historial_filtrado = historial[historial["Analista"].isin(analistas_seleccionados)].copy()
-    historial_filtrado["FechaHora"] = pd.to_datetime(historial_filtrado["FechaHora"], errors='coerce')
-    historial_filtrado = historial_filtrado.sort_values("FechaHora").tail(20)
-
-    # Graficar
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(
-        x=historial_filtrado["FechaHora"],
-        y=historial_filtrado["PC"],
+        x=historial["FechaHora"],
+        y=historial["PC"],
         mode="lines",
         name="Tendencia PC",
         line=dict(color="orange", width=2)
     ))
 
     fig.add_trace(go.Scatter(
-        x=historial_filtrado["FechaHora"],
-        y=historial_filtrado["PC"],
+        x=historial["FechaHora"],
+        y=historial["PC"],
         mode="markers",
         name="Predicciones",
         marker=dict(
-            size=historial_filtrado["Cenizas"] * 2,
-            color=historial_filtrado["PC"],
+            size=historial["Cenizas"] * 2,
+            color=historial["PC"],
             colorscale="YlOrRd",
             colorbar=dict(title="PC (kcal/kg)", len=0.75),
             showscale=True,
@@ -145,7 +133,7 @@ if not historial.empty:
         ),
         text=[
             f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for a, pc, cen in zip(historial_filtrado["Analista"], historial_filtrado["PC"], historial_filtrado["Cenizas"])
+            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
         ],
         hoverinfo="text"
     ))
@@ -161,9 +149,11 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla editable
+    # Tabla editable con columna "PC real"
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = historial_filtrado[["FechaHora", "Cenizas", "PC", "Analista"]]
+
+    # Añadir columna editable de "PC real"
+    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Analista"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
