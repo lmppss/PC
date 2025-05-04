@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real"]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -121,24 +121,21 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
+# NUEVO BLOQUE: Ingreso manual de PC real
 st.subheader("📝 Ingresar PC real manualmente")
-
 fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
+
 if fechas_disponibles:
     fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
     pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
     if st.button("📥 Cargar PC real"):
         if pc_real_input > 0:
             historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
-
-            # Recalcular la diferencia
             historial["Diferencia"] = np.where(
                 pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                 pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                 np.nan
             )
-
             historial.to_csv(historial_path, index=False)
             st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
         else:
@@ -193,12 +190,10 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla con colores condicionales (sin edición)
+# Tabla con colores condicionales
 st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-
 historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
 
-# Función de color
 def colorear_diferencia(val):
     if pd.isna(val):
         return ''
@@ -208,22 +203,18 @@ def colorear_diferencia(val):
         return 'background-color: #00cc66'  # verde
     return ''
 
-# Aplicar estilo
 styled_df = historial_df.style.applymap(colorear_diferencia, subset=['Diferencia'])
-
-# Mostrar
 st.dataframe(styled_df, use_container_width=True)
 
-
-    # Descargar Excel
-    st.subheader("📥 Descargar historial completo")
-    df_completo = pd.read_csv(historial_path)
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_completo.to_excel(writer, index=False, sheet_name='Historial')
-    st.download_button(
-        label="📄 Descargar en Excel",
-        data=buffer.getvalue(),
-        file_name="historial_predicciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Descargar Excel
+st.subheader("📥 Descargar historial completo")
+df_completo = pd.read_csv(historial_path)
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    df_completo.to_excel(writer, index=False, sheet_name='Historial')
+st.download_button(
+    label="📄 Descargar en Excel",
+    data=buffer.getvalue(),
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
