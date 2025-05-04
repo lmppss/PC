@@ -13,35 +13,37 @@ import pandas as pd
 import joblib
 import datetime
 import pytz
-import plotly.express as px
+import plotly.graph_objects as go
 import os
 from io import BytesIO
 
-# Cargar el modelo .pkl
+# Cargar modelo
 modelo = joblib.load("PC_0.8722_12.04.pkl")
 
-# Archivo temporal para guardar predicciones
+# Ruta historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC"]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "Analista"]).to_csv(historial_path, index=False)
 
-# Título de la app
+# Lista de analistas
+analistas = sorted(["Giomara C.", "Walter G.", "Julio O.", "Jhony V.", "Kenyi A."])
+analista_seleccionado = st.selectbox("👤 Seleccione el analista:", analistas + ["Otros"])
+
+# Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
 st.markdown("Ingrese los datos manualmente o pegue una fila completa separada por **coma, espacio o tabulación**.")
 
-# Opción de entrada rápida
+# Entrada rápida
 st.subheader("📋 Entrada rápida (una línea completa)")
 entrada_linea = st.text_input("Pegue aquí una fila completa con los 11 valores en orden:")
 
-# Inicializa la variable en session_state si no existe
+# Mostrar entrada manual
 if "mostrar_manual" not in st.session_state:
     st.session_state.mostrar_manual = False
 
-# Botón para activar/desactivar entrada manual
 if st.button("📝 Mostrar entrada manual"):
     st.session_state.mostrar_manual = not st.session_state.mostrar_manual
 
-# Mostrar campos si está activado
 if st.session_state.mostrar_manual:
     cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0)
     sio2 = st.number_input("SiO2 ash (%)", min_value=0.0)
@@ -55,12 +57,9 @@ if st.session_state.mostrar_manual:
     s_carbon = st.number_input("S carbón (%)", min_value=0.0)
     cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
 
-# Función para verificar si los datos son válidos
+# Validación
 def validar_entrada(entrada):
-    # Reemplazar las comas por puntos si es necesario
     entrada = entrada.replace(",", ".")
-
-    # Verificar si la entrada está vacía o contiene caracteres no numéricos
     if entrada == "":
         return False
     try:
@@ -71,7 +70,7 @@ def validar_entrada(entrada):
         return False
     return True
 
-# Botón de predicción
+# Botón predecir
 if st.button("🔮 Predecir Poder Calorífico"):
     if entrada_linea:
         if not validar_entrada(entrada_linea):
@@ -94,40 +93,31 @@ if st.button("🔮 Predecir Poder Calorífico"):
     pc_predicho = modelo.predict(valores_np)[0]
     pc_entero = int(round(pc_predicho))
 
-    # Mostrar resultado
     st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
 
-    # Guardar en historial
     ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
     nuevo = pd.DataFrame([{
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
-        "PC": pc_entero
+        "PC": pc_entero,
+        "Analista": analista_seleccionado
     }])
     historial = pd.read_csv(historial_path)
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
-# Leer historial completo
+# Leer historial
 historial = pd.read_csv(historial_path)
 
-# Si hay historial, proceder con el gráfico
 if not historial.empty:
-    # Convertir a datetime con zona horaria Lima
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
     historial["FechaHora"] = historial["FechaHora"].dt.tz_localize("America/Lima", ambiguous='NaT', nonexistent='shift_forward')
-
-    # Ordenar y filtrar los últimos 20 registros
     historial = historial.sort_values("FechaHora").tail(20)
 
-    # Mostrar gráfico mejorado
     st.subheader("📈 Historial de Predicciones (últimos 20)")
-
-    import plotly.graph_objects as go
 
     fig = go.Figure()
 
-    # Línea de tendencia (PC)
     fig.add_trace(go.Scatter(
         x=historial["FechaHora"],
         y=historial["PC"],
@@ -136,7 +126,6 @@ if not historial.empty:
         line=dict(color="orange", width=2)
     ))
 
-    # Puntos de predicción
     fig.add_trace(go.Scatter(
         x=historial["FechaHora"],
         y=historial["PC"],
@@ -144,20 +133,24 @@ if not historial.empty:
         name="Predicciones",
         marker=dict(
             size=historial["Cenizas"] * 2,
-            color=historial["PC"],
-            colorscale="YlOrRd",  # Colores calientes para valores altos
-            colorbar=dict(title="PC (kcal/kg)", len=0.75),
+            color=historial["Analista"].astype('category').cat.codes,
+            colorscale='Viridis',
+            colorbar=dict(
+                title="Analista",
+                tickvals=list(range(len(historial["Analista"].unique()))),
+                ticktext=historial["Analista"].unique(),
+                len=0.75
+            ),
             showscale=True,
             line=dict(width=0.5, color='white')
         ),
         text=[
-            f"PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for pc, cen in zip(historial["PC"], historial["Cenizas"])
+            f"Analista: {a}<br>PC: {p:.0f} kcal/kg<br>Cenizas: {c:.2f}%"
+            for a, p, c in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
         ],
         hoverinfo="text"
     ))
 
-    # Layout del gráfico
     fig.update_layout(
         title="Poder Calorífico vs Fecha (últimos 20 registros)",
         xaxis_title="Fecha y Hora",
@@ -169,13 +162,11 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Cuadro resumen editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = pd.read_csv(historial_path)[["FechaHora", "Cenizas", "PC"]]  # Filtrar columnas esperadas
+    historial_df = pd.read_csv(historial_path)[["FechaHora", "Cenizas", "PC", "Analista"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-    # Botón para eliminar filas marcadas
     if st.button("❌ Eliminar seleccionadas"):
         eliminadas = edited_df[edited_df["Eliminar"] == True]
         if not eliminadas.empty:
@@ -186,7 +177,6 @@ if not historial.empty:
         else:
             st.warning("No se seleccionaron filas para eliminar.")
 
-    # Botón para descargar todo el historial
     st.subheader("📥 Descargar historial completo")
     df_completo = pd.read_csv(historial_path)
     buffer = BytesIO()
