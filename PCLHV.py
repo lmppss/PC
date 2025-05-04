@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real"]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -92,19 +92,25 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,
+        "PC real": None,  # Inicialmente vacío
         "Analista": analista
     }])
 
+    # Cargar historial
     historial = pd.read_csv(historial_path)
+
+    # Asegurar que columnas necesarias existen
     if "PC real" not in historial.columns:
         historial["PC real"] = None
 
+    # Concatenar nueva fila y guardar
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
+
+# Asegurar columnas
 if "PC real" not in historial.columns:
     historial["PC real"] = None
 
@@ -115,8 +121,9 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# Ingreso manual de PC real
+# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
 st.subheader("📝 Ingresar PC real manualmente")
+
 fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
 if fechas_disponibles:
     fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
@@ -124,11 +131,14 @@ if fechas_disponibles:
     if st.button("📥 Cargar PC real"):
         if pc_real_input > 0:
             historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+
+            # Recalcular la diferencia
             historial["Diferencia"] = np.where(
                 pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                 pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                 np.nan
             )
+
             historial.to_csv(historial_path, index=False)
             st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
         else:
@@ -183,24 +193,32 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-# Tabla sin colores
-st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-edited_df = st.data_editor(
-    historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]],
-    num_rows="dynamic",
-    use_container_width=True
-)
+    # Tabla editable
+    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-# Descargar Excel
-st.subheader("📥 Descargar historial completo")
-df_completo = pd.read_csv(historial_path)
-buffer = BytesIO()
-with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-    df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
+    historial_df["Eliminar"] = False
+    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-st.download_button(
-    label="📄 Descargar en Excel",
-    data=buffer.getvalue(),
-    file_name="historial_predicciones.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+    if st.button("❌ Eliminar seleccionadas"):
+        eliminadas = edited_df[edited_df["Eliminar"] == True]
+        if not eliminadas.empty:
+            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+            historial_df.to_csv(historial_path, index=False)
+            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+            st.rerun()
+        else:
+            st.warning("No se seleccionaron filas para eliminar.")
+
+    # Descargar Excel
+    st.subheader("📥 Descargar historial completo")
+    df_completo = pd.read_csv(historial_path)
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    st.download_button(
+        label="📄 Descargar en Excel",
+        data=buffer.getvalue(),
+        file_name="historial_predicciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
