@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real"]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -121,7 +121,7 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
+# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real con alerta
 st.subheader("📝 Ingresar PC real manualmente")
 
 fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
@@ -139,8 +139,14 @@ if fechas_disponibles:
                 np.nan
             )
 
+            # Verificar diferencia absoluta
+            diferencia_actual = historial.loc[historial["FechaHora"] == fecha_seleccionada, "Diferencia"].values[0]
+            if abs(diferencia_actual) > 150:
+                st.error(f"⚠️ Alerta: La diferencia entre el PC real y el predicho es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
+            else:
+                st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+
             historial.to_csv(historial_path, index=False)
-            st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
         else:
             st.warning("⚠️ Ingrese un valor válido para el PC real.")
 else:
@@ -196,7 +202,7 @@ if not historial.empty:
     # Tabla editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
