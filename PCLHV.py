@@ -17,32 +17,31 @@ import plotly.graph_objects as go
 import os
 from io import BytesIO
 
-# Cargar el modelo
+# Cargar modelo
 modelo = joblib.load("PC_0.8722_12.04.pkl")
 
-# Ruta para historial
+# Ruta del historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real"]).to_csv(historial_path, index=False)
 
-# Título
+# Título y descripción
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
 st.markdown("Ingrese los datos manualmente o pegue una fila completa separada por **coma, espacio o tabulación**.")
 
 # Entrada rápida
-st.subheader("📋 Entrada rápida (una línea completa)")
+st.subheader("📋 Entrada rápida")
 entrada_linea = st.text_input("Pegue aquí una fila completa con los 11 valores en orden:")
 
-# Inicializa el estado de entrada manual
+# Mostrar entrada manual
 if "mostrar_manual" not in st.session_state:
     st.session_state.mostrar_manual = False
-
 if st.button("📝 Mostrar entrada manual"):
     st.session_state.mostrar_manual = not st.session_state.mostrar_manual
 
-# Lista de analistas
+# Analista
 analistas = sorted(["Giomara C.", "Walter G.", "Julio O.", "Jhony V.", "Kenyi A."]) + ["Otros"]
-analista = st.selectbox("👤 Seleccione el analista que realiza la predicción:", analistas)
+analista = st.selectbox("👤 Analista:", analistas)
 
 # Entrada manual
 if st.session_state.mostrar_manual:
@@ -58,152 +57,122 @@ if st.session_state.mostrar_manual:
     s_carbon = st.number_input("S carbón (%)", min_value=0.0)
     cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
 
-# Validación
+# Validación de entrada rápida
 def validar_entrada(entrada):
     entrada = entrada.replace(",", ".")
-    if entrada == "":
-        return False
     try:
-        valores = list(map(float, entrada.strip().split()))
+        valores = list(map(float, entrada.strip().replace(",", " ").replace("\t", " ").split()))
         return len(valores) == 11
-    except ValueError:
+    except:
         return False
 
 # Botón de predicción
 if st.button("🔮 Predecir Poder Calorífico"):
     if entrada_linea:
         if not validar_entrada(entrada_linea):
-            st.error("⚠️ Formato incorrecto. Ingrese exactamente 11 valores numéricos.")
+            st.error("⚠️ Ingrese exactamente 11 valores numéricos válidos.")
             st.stop()
-
-        sep = "," if "," in entrada_linea else "\t" if "\t" in entrada_linea else " "
-        valores = list(map(float, entrada_linea.strip().split(sep)))
+        valores = list(map(float, entrada_linea.strip().replace(",", " ").replace("\t", " ").split()))
     else:
         valores = [cenizas_bs, sio2, al2o3, fe2o3, cao, mgo, so3, na2o, k2o, s_carbon, cl_carbon]
 
-    valores_np = np.array(valores).reshape(1, -1)
-    pc_predicho = modelo.predict(valores_np)[0]
+    pc_predicho = modelo.predict(np.array(valores).reshape(1, -1))[0]
     pc_entero = int(round(pc_predicho))
-
     st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
 
-    ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
+    ahora = datetime.datetime.now(pytz.timezone('America/Lima')).strftime('%Y-%m-%d %H:%M:%S')
     nuevo = pd.DataFrame([{
-        "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
+        "FechaHora": ahora,
+        "Analista": analista,
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,  # Inicialmente vacío
-        "Analista": analista
+        "PC real": None
     }])
 
-    # Cargar historial
     historial = pd.read_csv(historial_path)
-
-    # Asegurar que columnas necesarias existen
-    if "PC real" not in historial.columns:
-        historial["PC real"] = None
-
-    # Concatenar nueva fila y guardar
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
-
-# Asegurar columnas
-if "PC real" not in historial.columns:
-    historial["PC real"] = None
-
-# Calcular diferencia si hay PC real
 historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
     pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
     np.nan
 )
 
-# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
+# Ingreso manual de PC real
 st.subheader("📝 Ingresar PC real manualmente")
-
-fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
-if fechas_disponibles:
-    fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
-    pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
+pendientes = historial[historial["PC real"].isna()]
+if not pendientes.empty:
+    fecha_sel = st.selectbox("Seleccione la predicción:", pendientes["FechaHora"].tolist())
+    pc_real_input = st.number_input("Ingrese el PC real:", min_value=0, key="pc_real_input")
     if st.button("📥 Cargar PC real"):
-        if pc_real_input > 0:
-            historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
-
-            # Recalcular la diferencia
-            historial["Diferencia"] = np.where(
-                pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-                pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
-                np.nan
-            )
-
-            historial.to_csv(historial_path, index=False)
-            st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
-        else:
-            st.warning("⚠️ Ingrese un valor válido para el PC real.")
+        historial.loc[historial["FechaHora"] == fecha_sel, "PC real"] = pc_real_input
+        historial["Diferencia"] = np.where(
+            pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+            pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+            np.nan
+        )
+        historial.to_csv(historial_path, index=False)
+        st.success(f"✅ PC real actualizado para {fecha_sel}")
 else:
-    st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
+    st.info("✅ No hay predicciones pendientes de PC real.")
 
 # Gráfico
-if not historial.empty:
-    st.subheader("📈 Historial de Predicciones (últimos 20)")
-    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-    historial = historial.sort_values("FechaHora").tail(20)
+st.subheader("📈 Historial de Predicciones")
+historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+historial = historial.sort_values("FechaHora").tail(20)
 
-    fig = go.Figure()
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=historial["FechaHora"],
+    y=historial["PC"],
+    mode="lines+markers",
+    name="Predicciones",
+    marker=dict(
+        size=historial["Cenizas"] * 2,
+        color=historial["PC"],
+        colorscale="YlOrRd",
+        colorbar=dict(title="PC (kcal/kg)", len=0.6),
+        line=dict(width=0.5, color='white')
+    ),
+    text=[
+        f"Analista: {a}<br>PC: {p}<br>Cenizas: {c:.2f}%" for a, p, c in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
+    ],
+    hoverinfo="text"
+))
+fig.update_layout(
+    title="Poder Calorífico vs Tiempo",
+    xaxis_title="Fecha y Hora",
+    yaxis_title="PC (kcal/kg)",
+    height=500,
+    template="plotly_dark"
+)
+st.plotly_chart(fig, use_container_width=True)
 
-    fig.add_trace(go.Scatter(
-        x=historial["FechaHora"],
-        y=historial["PC"],
-        mode="lines",
-        name="Tendencia PC",
-        line=dict(color="orange", width=2)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=historial["FechaHora"],
-        y=historial["PC"],
-        mode="markers",
-        name="Predicciones",
-        marker=dict(
-            size=historial["Cenizas"] * 2,
-            color=historial["PC"],
-            colorscale="YlOrRd",
-            colorbar=dict(title="PC (kcal/kg)", len=0.75),
-            showscale=True,
-            line=dict(width=0.5, color='white')
-        ),
-        text=[
-            f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
-        ],
-        hoverinfo="text"
-    ))
-
-    fig.update_layout(
-        title="Poder Calorífico vs Fecha (últimos 20 registros)",
-        xaxis_title="Fecha y Hora",
-        yaxis_title="Poder Calorífico (kcal/kg)",
-        template="plotly_dark",
-        hovermode="closest",
-        height=500
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # NUEVO: Función para aplicar color según la diferencia
+# Función de estilo para diferencia
 def aplicar_color_diferencia(val):
     if pd.isna(val):
-        return ""  # Sin color si es NaN
+        return ''
     elif abs(val) > 150:
-        st.warning(f"Reensayar: La diferencia es mayor a 150. Valor absoluto: {val:.2f}")
-        return 'background-color: red; color: white;'  # Rojo si > 150
-    elif abs(val) <= 149:
-        return 'background-color: green; color: white;'  # Verde si <= 149
+        return 'background-color: red; color: white;'
     else:
-        return ''  # Sin color
+        return 'background-color: green; color: white;'
 
-# NUEVO: Aplicar estilo condicional a la columna 'Diferencia'
-historial_styled = historial.style
+# Mostrar historial con estilo
+st.subheader("🗃️ Tabla de predicciones")
+historial_styled = historial.style.applymap(aplicar_color_diferencia, subset=["Diferencia"])
+st.dataframe(historial_styled, use_container_width=True)
+
+# Descargar historial
+st.subheader("📥 Descargar historial")
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    historial.to_excel(writer, index=False, sheet_name="Historial")
+st.download_button(
+    label="📄 Descargar como Excel",
+    data=buffer.getvalue(),
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
