@@ -245,27 +245,3 @@ if not historial.empty:
         file_name="historial_predicciones.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-reemplazar con esto:
-# Configuración de AgGrid con checkbox de selección habilitado
-gb = GridOptionsBuilder.from_dataframe(historial_df)
-gb.configure_pagination(paginationAutoPageSize=True)
-gb.configure_default_column(editable=False, groupable=True)
-
-# Habilitar checkbox en la columna "Eliminar"
-gb.configure_column("Eliminar", checkboxSelection=True)
-
-# Configurar el modo de selección
-gb.configure_selection(selection_mode="multiple", use_checkbox=True)
-grid_options = gb.build()
-
-# Mostrar la tabla
-grid_response = AgGrid(
-    historial_df,
-    gridOptions=grid_options,
-    update_mode=GridUpdateMode.MODEL_CHANGED,  # Asegura que los cambios se reflejen en el modelo
-    fit_columns_on_grid_load=True,
-    theme='material',
-    height=400,
-    width='100%',
-    reload_data=True
-)
