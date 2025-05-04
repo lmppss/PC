@@ -193,18 +193,36 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla editable
+    # Resumen de predicciones recientes (últimos 20)
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]].copy()
+    historial_df.insert(0, "Eliminar", False)
 
-    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
-    historial_df["Eliminar"] = False
+    # Renombrar columnas para presentación
+    historial_df.rename(columns={
+        "FechaHora": "Fecha",
+        "PC": "PC predicción",
+        "PC real": "PC real",
+        "Diferencia": "Diferencia"
+    }, inplace=True)
+
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
+    # Eliminar filas seleccionadas
     if st.button("❌ Eliminar seleccionadas"):
         eliminadas = edited_df[edited_df["Eliminar"] == True]
         if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
+            historial_df_filtrado = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+
+            # Renombrar columnas a los nombres originales antes de guardar
+            historial_df_filtrado.rename(columns={
+                "Fecha": "FechaHora",
+                "PC predicción": "PC",
+                "PC real": "PC real",
+                "Diferencia": "Diferencia"
+            }, inplace=True)
+
+            historial_df_filtrado.to_csv(historial_path, index=False)
             st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
             st.rerun()
         else:
