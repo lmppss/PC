@@ -121,35 +121,43 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-
-
-# Ingreso manual de PC real con alerta
+# NUEVO BLOQUE: Sección colapsable para ingresar PC real
 st.subheader("📝 Ingresar PC real manualmente")
-fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].astype(str).tolist()
-if fechas_disponibles:
-    fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
-    pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
-    if st.button("📅 Cargar PC real"):
-        if pc_real_input > 0:
-            historial.loc[historial["FechaHora"].astype(str) == fecha_seleccionada, "PC real"] = pc_real_input
 
-            historial["Diferencia"] = np.where(
-                pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-                pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
-                np.nan
-            )
+if "mostrar_pc_real" not in st.session_state:
+    st.session_state.mostrar_pc_real = False
 
-            diferencia_actual = historial.loc[historial["FechaHora"].astype(str) == fecha_seleccionada, "Diferencia"].values[0]
-            if abs(diferencia_actual) > 150:
-                st.error(f"⚠️ Alerta: La diferencia es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
+if st.button("🗂️ Mostrar/Ocultar ingreso de PC real"):
+    st.session_state.mostrar_pc_real = not st.session_state.mostrar_pc_real
+
+if st.session_state.mostrar_pc_real:
+    fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
+    if fechas_disponibles:
+        fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
+        pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
+        if st.button("📥 Cargar PC real"):
+            if pc_real_input > 0:
+                historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+
+                # Recalcular diferencia
+                historial["Diferencia"] = np.where(
+                    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+                    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+                    np.nan
+                )
+
+                diferencia_actual = historial.loc[historial["FechaHora"] == fecha_seleccionada, "Diferencia"].values[0]
+                if abs(diferencia_actual) > 150:
+                    st.error(f"⚠️ Alerta: La diferencia entre el PC real y el predicho es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
+                else:
+                    st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+
+                historial.to_csv(historial_path, index=False)
             else:
-                st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+                st.warning("⚠️ Ingrese un valor válido para el PC real.")
+    else:
+        st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
-            historial.to_csv(historial_path, index=False)
-        else:
-            st.warning("⚠️ Ingrese un valor válido para el PC real.")
-else:
-    st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
 # Filtro por analista
 st.subheader("🔍 Filtrar por analista")
