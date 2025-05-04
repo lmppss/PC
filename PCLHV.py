@@ -194,21 +194,50 @@ if not historial.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     # Tabla editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+    # NUEVO: Función para aplicar color según la diferencia
+def aplicar_color_diferencia(val):
+    if pd.isna(val):
+        return ""  # Sin color si es NaN
+    elif abs(val) > 150:
+        return 'background-color: red; color: white;'  # Rojo si > 150
+    elif abs(val) <= 149:
+        return 'background-color: green; color: white;'  # Verde si <= 149
+    else:
+        return ''  # Sin color
 
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+# Leer historial
+historial = pd.read_csv(historial_path)
 
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
+# Asegurar columnas
+if "PC real" not in historial.columns:
+    historial["PC real"] = None
+
+# Calcular diferencia si hay PC real
+historial["Diferencia"] = np.where(
+    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+    np.nan
+)
+
+# NUEVO: Aplicar estilo condicional a la columna 'Diferencia'
+historial_styled = historial.style.applymap(aplicar_color_diferencia, subset=["Diferencia"])
+
+# Tabla editable
+st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+
+# Mostrar el historial con el estilo aplicado
+edited_df = st.data_editor(historial_styled[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]], num_rows="dynamic", use_container_width=True)
+
+# Botón de eliminación
+if st.button("❌ Eliminar seleccionadas"):
+    eliminadas = edited_df[edited_df["Eliminar"] == True]
+    if not eliminadas.empty:
+        historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+        historial_df.to_csv(historial_path, index=False)
+        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+        st.rerun()
+    else:
+        st.warning("No se seleccionaron filas para eliminar.")
 
     # Descargar Excel
     st.subheader("📥 Descargar historial completo")
