@@ -205,7 +205,17 @@ def colorear_diferencia(val):
 
 styled_df = historial_df.style.applymap(colorear_diferencia, subset=['Diferencia'])
 st.dataframe(styled_df, use_container_width=True)
+# Eliminar fila del historial
+st.subheader("🗑️ Eliminar predicción del historial")
 
+fechas_eliminar = historial["FechaHora"].dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
+fecha_a_eliminar = st.selectbox("Seleccione la predicción que desea eliminar:", fechas_eliminar, key="eliminar_fecha")
+
+if st.button("❌ Eliminar fila seleccionada"):
+    historial_filtrado = historial[historial["FechaHora"].dt.strftime('%Y-%m-%d %H:%M:%S') != fecha_a_eliminar]
+    historial_filtrado.to_csv(historial_path, index=False)
+    st.success(f"✅ Fila del {fecha_a_eliminar} eliminada correctamente.")
+    st.experimental_rerun()
 # Descargar Excel
 st.subheader("📥 Descargar historial completo")
 df_completo = pd.read_csv(historial_path)
