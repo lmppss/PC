@@ -214,12 +214,19 @@ if not historial.empty:
 if st.button("❌ Eliminar seleccionadas"):
     seleccionadas = grid_response["selected_rows"]
     if len(seleccionadas) > 0:
-        historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
-        historial.to_csv(historial_path, index=False)
-        st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
-        st.rerun()
+        fechas_a_eliminar = [
+            row["FechaHora"] for row in seleccionadas if isinstance(row, dict) and "FechaHora" in row
+        ]
+        if len(fechas_a_eliminar) > 0:
+            historial = historial[~historial["FechaHora"].isin(fechas_a_eliminar)]
+            historial.to_csv(historial_path, index=False)
+            st.success(f"Se eliminaron {len(fechas_a_eliminar)} predicciones.")
+            st.rerun()
+        else:
+            st.warning("No se encontraron fechas válidas para eliminar.")
     else:
         st.warning("No se seleccionaron filas para eliminar.")
+
 
 
 
