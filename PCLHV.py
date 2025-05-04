@@ -93,8 +93,7 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "Cenizas": valores[0],
         "PC": pc_entero,
         "PC real": None,  # Inicialmente vacío
-        "Analista": analista,
-        "Diferencia": None  # Inicialmente vacío
+        "Analista": analista
     }])
 
     # Cargar historial
@@ -122,33 +121,38 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-if not historial.empty:
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+# Mostrar tabla editable y calculada
+st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
+historial_df["Eliminar"] = False
 
-    # Mostrar solo tabla editable
-    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+# La tabla es editable para que puedas modificar el valor de 'PC real' directamente
+edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
+# Cuando el valor de "PC real" cambia, la diferencia se actualiza automáticamente
+if "PC real" in edited_df.columns:
+    edited_df["Diferencia"] = edited_df["PC real"] - edited_df["PC"]
 
-    # Descargar Excel
-    st.subheader("📥 Descargar historial completo")
-    df_completo = pd.read_csv(historial_path)
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_completo.to_excel(writer, index=False, sheet_name='Historial')
-    st.download_button(
-        label="📄 Descargar en Excel",
-        data=buffer.getvalue(),
-        file_name="historial_predicciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Eliminar filas seleccionadas
+if st.button("❌ Eliminar seleccionadas"):
+    eliminadas = edited_df[edited_df["Eliminar"] == True]
+    if not eliminadas.empty:
+        historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+        historial_df.to_csv(historial_path, index=False)
+        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+        st.rerun()
+    else:
+        st.warning("No se seleccionaron filas para eliminar.")
+
+# Descargar Excel
+st.subheader("📥 Descargar historial completo")
+df_completo = pd.read_csv(historial_path)
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    df_completo.to_excel(writer, index=False, sheet_name='Historial')
+st.download_button(
+    label="📄 Descargar en Excel",
+    data=buffer.getvalue(),
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
