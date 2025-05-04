@@ -149,6 +149,14 @@ if st.button("💡 Ingresar PC real"):
     else:
         st.info("No hay predicciones pendientes de PC real para actualizar.")
 
+                # Guardar el historial actualizado
+                historial.to_csv(historial_path, index=False)
+                st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+            else:
+                st.warning("Por favor, ingrese un valor válido para el PC real.")
+    else:
+        st.info("No hay predicciones pendientes de PC real para actualizar.")
+
 # Recálculo de la diferencia
 historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
