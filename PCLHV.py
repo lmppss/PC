@@ -156,3 +156,30 @@ st.download_button(
     file_name="historial_predicciones.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+# Graficar la dispersión
+st.subheader("📊 Gráfico de dispersión del Poder Calorífico")
+grafico = go.Figure()
+
+grafico.add_trace(go.Scatter(
+    x=pd.to_datetime(historial["FechaHora"]),
+    y=historial["PC"],
+    mode="markers",
+    marker=dict(
+        size=10,
+        color=historial["Cenizas"],
+        colorscale="Viridis",
+        showscale=True,
+        colorbar=dict(title="Cenizas (%)")
+    ),
+    name="Poder Calorífico Predicho"
+))
+
+grafico.update_layout(
+    title="Dispersión de Predicciones de Poder Calorífico",
+    xaxis_title="Fecha y Hora",
+    yaxis_title="Poder Calorífico (kcal/kg)",
+    template="plotly_dark"
+)
+
+st.plotly_chart(grafico)
