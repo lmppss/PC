@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real"]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -121,21 +121,24 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# NUEVO BLOQUE: Ingreso manual de PC real
+# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
 st.subheader("📝 Ingresar PC real manualmente")
-fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
 
+fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
 if fechas_disponibles:
     fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
     pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
     if st.button("📥 Cargar PC real"):
         if pc_real_input > 0:
             historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+
+            # Recalcular la diferencia
             historial["Diferencia"] = np.where(
                 pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                 pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                 np.nan
             )
+
             historial.to_csv(historial_path, index=False)
             st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
         else:
@@ -190,41 +193,32 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-# Tabla con colores condicionales
-st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
+    # Tabla editable
+    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-def colorear_diferencia(val):
-    if pd.isna(val):
-        return ''
-    elif abs(val) > 150:
-        return 'background-color: #ff4d4d'  # rojo
-    elif abs(val) <= 149:
-        return 'background-color: #00cc66'  # verde
-    return ''
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
+    historial_df["Eliminar"] = False
+    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-styled_df = historial_df.style.applymap(colorear_diferencia, subset=['Diferencia'])
-st.dataframe(styled_df, use_container_width=True)
-# Eliminar fila del historial
-st.subheader("🗑️ Eliminar predicción del historial")
+    if st.button("❌ Eliminar seleccionadas"):
+        eliminadas = edited_df[edited_df["Eliminar"] == True]
+        if not eliminadas.empty:
+            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+            historial_df.to_csv(historial_path, index=False)
+            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+            st.rerun()
+        else:
+            st.warning("No se seleccionaron filas para eliminar.")
 
-fechas_eliminar = historial["FechaHora"].dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
-fecha_a_eliminar = st.selectbox("Seleccione la predicción que desea eliminar:", fechas_eliminar, key="eliminar_fecha")
-
-if st.button("❌ Eliminar fila seleccionada"):
-    historial_filtrado = historial[historial["FechaHora"].dt.strftime('%Y-%m-%d %H:%M:%S') != fecha_a_eliminar]
-    historial_filtrado.to_csv(historial_path, index=False)
-    st.success(f"✅ Fila del {fecha_a_eliminar} eliminada correctamente.")
-    st.experimental_rerun()
-# Descargar Excel
-st.subheader("📥 Descargar historial completo")
-df_completo = pd.read_csv(historial_path)
-buffer = BytesIO()
-with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-    df_completo.to_excel(writer, index=False, sheet_name='Historial')
-st.download_button(
-    label="📄 Descargar en Excel",
-    data=buffer.getvalue(),
-    file_name="historial_predicciones.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+    # Descargar Excel
+    st.subheader("📥 Descargar historial completo")
+    df_completo = pd.read_csv(historial_path)
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    st.download_button(
+        label="📄 Descargar en Excel",
+        data=buffer.getvalue(),
+        file_name="historial_predicciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
