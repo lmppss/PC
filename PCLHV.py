@@ -92,7 +92,7 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,  # Inicialmente vacío
+        "PC real": None,
         "Analista": analista
     }])
 
@@ -121,28 +121,40 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real con alerta
-st.subheader("📝 Ingresar PC real manualmente")
+# Filtro por analista
+st.subheader("🔍 Filtrar por analista")
+analistas_disponibles = historial["Analista"].unique().tolist()
+analistas_seleccionados = st.multiselect(
+    "Seleccione uno o varios analistas:",
+    options=analistas_disponibles,
+    default=analistas_disponibles,
+    placeholder="Seleccione uno o varios analistas..."
+)
 
-fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
+# Aplicar filtro
+historial = historial[historial["Analista"].isin(analistas_seleccionados)].copy()
+historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+historial = historial.sort_values("FechaHora").tail(20)
+
+# Ingreso manual de PC real con alerta
+st.subheader("📝 Ingresar PC real manualmente")
+fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].astype(str).tolist()
 if fechas_disponibles:
     fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
     pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
-    if st.button("📥 Cargar PC real"):
+    if st.button("📅 Cargar PC real"):
         if pc_real_input > 0:
-            historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+            historial.loc[historial["FechaHora"].astype(str) == fecha_seleccionada, "PC real"] = pc_real_input
 
-            # Recalcular la diferencia
             historial["Diferencia"] = np.where(
                 pd.to_numeric(historial["PC real"], errors='coerce').notna(),
                 pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
                 np.nan
             )
 
-            # Verificar diferencia absoluta
-            diferencia_actual = historial.loc[historial["FechaHora"] == fecha_seleccionada, "Diferencia"].values[0]
+            diferencia_actual = historial.loc[historial["FechaHora"].astype(str) == fecha_seleccionada, "Diferencia"].values[0]
             if abs(diferencia_actual) > 150:
-                st.error(f"⚠️ Alerta: La diferencia entre el PC real y el predicho es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
+                st.error(f"⚠️ Alerta: La diferencia es de {diferencia_actual:.1f} kcal/kg, mayor al umbral de 150.")
             else:
                 st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
 
@@ -154,9 +166,7 @@ else:
 
 # Gráfico
 if not historial.empty:
-    st.subheader("📈 Historial de Predicciones (últimos 20)")
-    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-    historial = historial.sort_values("FechaHora").tail(20)
+    st.subheader("📈 Historial de Predicciones (filtrado)")
 
     fig = go.Figure()
 
@@ -189,7 +199,7 @@ if not historial.empty:
     ))
 
     fig.update_layout(
-        title="Poder Calorífico vs Fecha (últimos 20 registros)",
+        title="Poder Calorífico vs Fecha",
         xaxis_title="Fecha y Hora",
         yaxis_title="Poder Calorífico (kcal/kg)",
         template="plotly_dark",
@@ -200,7 +210,7 @@ if not historial.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     # Tabla editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+    st.subheader("📃 Resumen de predicciones recientes (filtradas)")
 
     historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
     historial_df["Eliminar"] = False
@@ -217,7 +227,7 @@ if not historial.empty:
             st.warning("No se seleccionaron filas para eliminar.")
 
     # Descargar Excel
-    st.subheader("📥 Descargar historial completo")
+    st.subheader("📅 Descargar historial completo")
     df_completo = pd.read_csv(historial_path)
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
