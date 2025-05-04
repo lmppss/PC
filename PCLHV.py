@@ -197,7 +197,7 @@ if not historial.empty:
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
     historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
-    historial_df[0, "Eliminar"] = False
+    historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
     if st.button("❌ Eliminar seleccionadas"):
