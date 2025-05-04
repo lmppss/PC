@@ -114,11 +114,12 @@ historial = pd.read_csv(historial_path)
 if "PC real" not in historial.columns:
     historial["PC real"] = None
 
-# Calcular error absoluto si hay PC real
-historial["Error absoluto"] = np.where(
+# Calcular diferencia si hay PC real
+historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-    abs(historial["PC"] - pd.to_numeric(historial["PC real"], errors='coerce')),
+    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
     np.nan
+)
 )
 
 if not historial.empty:
@@ -170,7 +171,7 @@ if not historial.empty:
     # Tabla editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Error absoluto", "Analista"]]
+    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
