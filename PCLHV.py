@@ -121,20 +121,7 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# Filtro por analista
-st.subheader("🔍 Filtrar por analista")
-analistas_disponibles = historial["Analista"].unique().tolist()
-analistas_seleccionados = st.multiselect(
-    "Seleccione uno o varios analistas:",
-    options=analistas_disponibles,
-    default=analistas_disponibles,
-    placeholder="Seleccione uno o varios analistas..."
-)
 
-# Aplicar filtro
-historial = historial[historial["Analista"].isin(analistas_seleccionados)].copy()
-historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-historial = historial.sort_values("FechaHora").tail(20)
 
 # Ingreso manual de PC real con alerta
 st.subheader("📝 Ingresar PC real manualmente")
@@ -164,6 +151,20 @@ if fechas_disponibles:
 else:
     st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
+# Filtro por analista
+st.subheader("🔍 Filtrar por analista")
+analistas_disponibles = historial["Analista"].unique().tolist()
+analistas_seleccionados = st.multiselect(
+    "Seleccione uno o varios analistas:",
+    options=analistas_disponibles,
+    default=analistas_disponibles,
+    placeholder="Seleccione uno o varios analistas..."
+)
+
+# Aplicar filtro
+historial = historial[historial["Analista"].isin(analistas_seleccionados)].copy()
+historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+historial = historial.sort_values("FechaHora").tail(20)
 # Gráfico
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (filtrado)")
