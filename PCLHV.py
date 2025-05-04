@@ -8,27 +8,113 @@ Original file is located at
 """
 
 import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import joblib
 import datetime
 import pytz
 import plotly.graph_objects as go
 import os
 from io import BytesIO
 
+# Cargar el modelo
+modelo = joblib.load("PC_0.8722_12.04.pkl")
+
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
     pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "PC real", "Analista"]).to_csv(historial_path, index=False)
 
-# Cargar historial
+# Título
+st.title("🔥 Predicción del Poder Calorífico del Carbón")
+st.markdown("Ingrese los datos manualmente o pegue una fila completa separada por **coma, espacio o tabulación**.")
+
+# Entrada rápida
+st.subheader("📋 Entrada rápida (una línea completa)")
+entrada_linea = st.text_input("Pegue aquí una fila completa con los 11 valores en orden:")
+
+# Inicializa el estado de entrada manual
+if "mostrar_manual" not in st.session_state:
+    st.session_state.mostrar_manual = False
+
+if st.button("📝 Mostrar entrada manual"):
+    st.session_state.mostrar_manual = not st.session_state.mostrar_manual
+
+# Lista de analistas
+analistas = sorted(["Giomara C.", "Walter G.", "Julio O.", "Jhony V.", "Kenyi A."]) + ["Otros"]
+analista = st.selectbox("👤 Seleccione el analista que realiza la predicción:", analistas)
+
+# Entrada manual
+if st.session_state.mostrar_manual:
+    cenizas_bs = st.number_input("Cenizas (BS) (%)", min_value=0.0)
+    sio2 = st.number_input("SiO2 ash (%)", min_value=0.0)
+    al2o3 = st.number_input("Al2O3 ash (%)", min_value=0.0)
+    fe2o3 = st.number_input("Fe2O3 ash (%)", min_value=0.0)
+    cao = st.number_input("CaO ash (%)", min_value=0.0)
+    mgo = st.number_input("MgO ash (%)", min_value=0.0)
+    so3 = st.number_input("SO3 ash (%)", min_value=0.0)
+    na2o = st.number_input("Na2O ash (%)", min_value=0.0)
+    k2o = st.number_input("K2O ash (%)", min_value=0.0)
+    s_carbon = st.number_input("S carbón (%)", min_value=0.0)
+    cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
+
+# Validación
+def validar_entrada(entrada):
+    entrada = entrada.replace(",", ".")
+    if entrada == "":
+        return False
+    try:
+        valores = list(map(float, entrada.strip().split()))
+        return len(valores) == 11
+    except ValueError:
+        return False
+
+# Botón de predicción
+if st.button("🔮 Predecir Poder Calorífico"):
+    if entrada_linea:
+        if not validar_entrada(entrada_linea):
+            st.error("⚠️ Formato incorrecto. Ingrese exactamente 11 valores numéricos.")
+            st.stop()
+
+        sep = "," if "," in entrada_linea else "\t" if "\t" in entrada_linea else " "
+        valores = list(map(float, entrada_linea.strip().split(sep)))
+    else:
+        valores = [cenizas_bs, sio2, al2o3, fe2o3, cao, mgo, so3, na2o, k2o, s_carbon, cl_carbon]
+
+    valores_np = np.array(valores).reshape(1, -1)
+    pc_predicho = modelo.predict(valores_np)[0]
+    pc_entero = int(round(pc_predicho))
+
+    st.success(f"🔥 Poder Calorífico Predicho: **{pc_entero} kcal/kg**")
+
+    ahora_lima = datetime.datetime.now(pytz.timezone('America/Lima'))
+    nuevo = pd.DataFrame([{
+        "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
+        "Cenizas": valores[0],
+        "PC": pc_entero,
+        "PC real": None,  # Inicialmente vacío
+        "Analista": analista
+    }])
+
+    # Cargar historial
+    historial = pd.read_csv(historial_path)
+
+    # Asegurar que columnas necesarias existen
+    if "PC real" not in historial.columns:
+        historial["PC real"] = None
+
+    # Concatenar nueva fila y guardar
+    historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
+    historial.to_csv(historial_path, index=False)
+
+# Leer historial
 historial = pd.read_csv(historial_path)
 
-# Asegurar que columnas necesarias existen
+# Asegurar columnas
 if "PC real" not in historial.columns:
     historial["PC real"] = None
 
-# Calcular la diferencia si hay PC real
+# Calcular diferencia si hay PC real
 historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce').notna(),
     pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
@@ -55,7 +141,7 @@ if st.button("💡 Ingresar PC real"):
                     np.nan
                 )
 
-                # Guardar el historial actualizado en CSV
+                # Guardar el historial actualizado
                 historial.to_csv(historial_path, index=False)
                 st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
             else:
@@ -70,7 +156,6 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# Mostrar gráfico de historial
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
