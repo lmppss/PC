@@ -152,6 +152,20 @@ if fechas_disponibles:
 else:
     st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
+# Filtro por analista
+    analistas_disponibles = historial["Analista"].unique().tolist()
+    analistas_seleccionados = st.multiselect(
+        "🔍 Filtrar por analista:",
+        options=analistas_disponibles,
+        default=analistas_disponibles,
+        placeholder="Seleccione uno o varios analistas..."
+    )
+
+    # Aplicar filtro
+    historial_filtrado = historial[historial["Analista"].isin(analistas_seleccionados)].copy()
+    historial_filtrado["FechaHora"] = pd.to_datetime(historial_filtrado["FechaHora"], errors='coerce')
+    historial_filtrado = historial_filtrado.sort_values("FechaHora").tail(20)
+
 # Gráfico
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
