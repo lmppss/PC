@@ -198,7 +198,24 @@ if not historial.empty:
 
     historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
     historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+    edited_df = st.data_editor(
+    historial_df,
+    num_rows="dynamic",
+    use_container_width=True,
+    column_config={
+        "Diferencia": st.column_config.NumberColumn(
+            "Diferencia",
+            help="Diferencia entre PC real y PC predicho",
+            format="%.1f",
+            cell_style=lambda valor: (
+                "background-color: #ff4d4d;" if abs(valor) > 150 else
+                "background-color: #00cc66;" if abs(valor) <= 149 else
+                ""
+            ) if pd.notna(valor) else ""
+        )
+    }
+)
+
 
     if st.button("❌ Eliminar seleccionadas"):
         eliminadas = edited_df[edited_df["Eliminar"] == True]
