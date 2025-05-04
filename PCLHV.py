@@ -152,42 +152,30 @@ if fechas_disponibles:
 else:
     st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
-# Seleccionar analista para filtro
-analista_filtro = st.selectbox("🔍 Filtrar por analista", ["Todos"] + analistas)
-
-# Filtrar el historial según el analista seleccionado
-if analista_filtro != "Todos":
-    historial_recientes = historial[historial["Analista"] == analista_filtro]
-else:
-    historial_recientes = historial
-
-# Filtrar los últimos 3 días
-historial_recientes["FechaHora"] = pd.to_datetime(historial_recientes["FechaHora"], errors='coerce')
-hace_3_dias = datetime.datetime.now(pytz.timezone('America/Lima')) - datetime.timedelta(days=3)
-historial_recientes = historial_recientes[historial_recientes["FechaHora"] >= hace_3_dias]
-
 # Gráfico
-if not historial_recientes.empty:
-    st.subheader("📈 Historial de Predicciones (últimos 3 días)")
+if not historial.empty:
+    st.subheader("📈 Historial de Predicciones (últimos 20)")
+    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+    historial = historial.sort_values("FechaHora").tail(20)
 
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(
-        x=historial_recientes["FechaHora"],
-        y=historial_recientes["PC"],
+        x=historial["FechaHora"],
+        y=historial["PC"],
         mode="lines",
         name="Tendencia PC",
         line=dict(color="orange", width=2)
     ))
 
     fig.add_trace(go.Scatter(
-        x=historial_recientes["FechaHora"],
-        y=historial_recientes["PC"],
+        x=historial["FechaHora"],
+        y=historial["PC"],
         mode="markers",
         name="Predicciones",
         marker=dict(
-            size=historial_recientes["Cenizas"] * 2,
-            color=historial_recientes["PC"],
+            size=historial["Cenizas"] * 2,
+            color=historial["PC"],
             colorscale="YlOrRd",
             colorbar=dict(title="PC (kcal/kg)", len=0.75),
             showscale=True,
@@ -195,13 +183,13 @@ if not historial_recientes.empty:
         ),
         text=[
             f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for a, pc, cen in zip(historial_recientes["Analista"], historial_recientes["PC"], historial_recientes["Cenizas"])
+            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
         ],
         hoverinfo="text"
     ))
 
     fig.update_layout(
-        title="Poder Calorífico vs Fecha (últimos 3 días)",
+        title="Poder Calorífico vs Fecha (últimos 20 registros)",
         xaxis_title="Fecha y Hora",
         yaxis_title="Poder Calorífico (kcal/kg)",
         template="plotly_dark",
@@ -211,9 +199,10 @@ if not historial_recientes.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Mostrar tabla con los últimos 3 días
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 3 días)")
-    historial_df = historial_recientes[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
+    # Tabla editable
+    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
     historial_df["Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
@@ -226,5 +215,16 @@ if not historial_recientes.empty:
             st.rerun()
         else:
             st.warning("No se seleccionaron filas para eliminar.")
-else:
-    st.info("🎉 No hay predicciones recientes para mostrar.")
+
+    # Descargar Excel
+    st.subheader("📥 Descargar historial completo")
+    df_completo = pd.read_csv(historial_path)
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_completo.to_excel(writer, index=False, sheet_name='Historial')
+    st.download_button(
+        label="📄 Descargar en Excel",
+        data=buffer.getvalue(),
+        file_name="historial_predicciones.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
