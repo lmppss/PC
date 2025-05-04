@@ -121,6 +121,29 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
+# Botón para ingresar PC real
+if st.button("💡 Ingresar PC real"):
+    # Solo se muestra si hay predicciones previas para actualizar
+    if not historial.empty:
+        for idx, row in historial.iterrows():
+            if pd.isna(row['PC real']):
+                # Mostrar los valores del historial donde 'PC real' aún está vacío
+                pc_real_input = st.number_input(f"Ingrese PC real para la predicción {idx+1}:", min_value=0)
+                if pc_real_input:
+                    historial.at[idx, "PC real"] = pc_real_input
+                    st.success(f"PC real actualizado para el registro {idx+1}.")
+                else:
+                    st.warning(f"Se debe ingresar un valor para PC real.")
+            else:
+                st.info(f"Predicción {idx+1} ya tiene un PC real.")
+
+# Recálculo de la diferencia
+historial["Diferencia"] = np.where(
+    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+    np.nan
+)
+
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
