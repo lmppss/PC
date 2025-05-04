@@ -199,49 +199,23 @@ if not historial.empty:
     st.plotly_chart(fig, use_container_width=True)
 
     # Tabla editable con AgGrid
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
+    st.subheader("🗃️ Resumen de Predicciones")
 
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
-    historial_df["Eliminar"] = False
-
-    # Configuración de AgGrid
-    gb = GridOptionsBuilder.from_dataframe(historial_df)
-    gb.configure_pagination(paginationAutoPageSize=True)
-    gb.configure_default_column(editable=False, groupable=True)
-    gb.configure_selection(selection_mode="multiple", use_checkbox=True)
+    gb = GridOptionsBuilder.from_dataframe(historial)
+    gb.configure_column("Eliminar", checkboxSelection=True)
     grid_options = gb.build()
 
+    # Mostrar la tabla
     grid_response = AgGrid(
-        historial_df,
+        historial,
         gridOptions=grid_options,
-        update_mode=GridUpdateMode.NO_UPDATE,
-        fit_columns_on_grid_load=True,
-        theme='material',
-        height=400,
-        width='100%',
-        reload_data=True
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        fit_columns_on_grid_load=True
     )
 
-    # Botón de eliminación
-    if st.button("❌ Eliminar seleccionadas"):
-        seleccionadas = grid_response["selected_rows"]
-        if seleccionadas:
-            historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
-            historial.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
-
-    # Descargar Excel
-    st.subheader("📥 Descargar historial completo")
-    df_completo = pd.read_csv(historial_path)
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_completo.to_excel(writer, index=False, sheet_name='Historial')
-    st.download_button(
-        label="📄 Descargar en Excel",
-        data=buffer.getvalue(),
-        file_name="historial_predicciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    if grid_response['selected_rows']:
+        rows_to_delete = grid_response['selected_rows']
+        for row in rows_to_delete:
+            historial = historial[historial['FechaHora'] != row['FechaHora']]
+        historial.to_csv(historial_path, index=False)
+        st.success(f"✅ Se eliminaron {len(rows_to_delete)} registros.")
