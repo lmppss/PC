@@ -123,19 +123,28 @@ historial["Diferencia"] = np.where(
 
 # Botón para ingresar PC real
 if st.button("💡 Ingresar PC real"):
-    # Solo se muestra si hay predicciones previas para actualizar
-    if not historial.empty:
-        for idx, row in historial.iterrows():
-            if pd.isna(row['PC real']):
-                # Mostrar los valores del historial donde 'PC real' aún está vacío
-                pc_real_input = st.number_input(f"Ingrese PC real para la predicción {idx+1}:", min_value=0)
-                if pc_real_input:
-                    historial.at[idx, "PC real"] = pc_real_input
-                    st.success(f"PC real actualizado para el registro {idx+1}.")
-                else:
-                    st.warning(f"Se debe ingresar un valor para PC real.")
+    # Selección de fecha
+    fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
+    if fechas_disponibles:
+        fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles)
+        pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0)
+
+        if st.button("📥 Cargar PC real"):
+            if pc_real_input:
+                # Actualizar el valor de "PC real" en el historial
+                historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+                historial["Diferencia"] = np.where(
+                    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+                    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+                    np.nan
+                )
+                # Guardar el historial actualizado
+                historial.to_csv(historial_path, index=False)
+                st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
             else:
-                st.info(f"Predicción {idx+1} ya tiene un PC real.")
+                st.warning("Por favor, ingrese un valor válido para el PC real.")
+    else:
+        st.info("No hay predicciones pendientes de PC real para actualizar.")
 
 # Recálculo de la diferencia
 historial["Diferencia"] = np.where(
