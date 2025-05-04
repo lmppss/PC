@@ -16,6 +16,7 @@ import pytz
 import plotly.graph_objects as go
 import os
 from io import BytesIO
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 # Cargar el modelo
 modelo = joblib.load("PC_0.8722_12.04.pkl")
@@ -181,10 +182,8 @@ if not historial.empty:
             showscale=True,
             line=dict(width=0.5, color='white')
         ),
-        text=[
-            f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
-        ],
+        text=[f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
+              for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])],
         hoverinfo="text"
     ))
 
@@ -199,19 +198,37 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla editable
+    # Tabla editable con AgGrid
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
     historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
     historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
+    # Configuración de AgGrid
+    gb = GridOptionsBuilder.from_dataframe(historial_df)
+    gb.configure_pagination(paginationAutoPageSize=True)
+    gb.configure_default_column(editable=False, groupable=True)
+    gb.configure_selection(selection_mode="multiple", use_checkbox=True)
+    grid_options = gb.build()
+
+    grid_response = AgGrid(
+        historial_df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.NO_UPDATE,
+        fit_columns_on_grid_load=True,
+        theme='material',
+        height=400,
+        width='100%',
+        reload_data=True
+    )
+
+    # Botón de eliminación
     if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+        seleccionadas = grid_response["selected_rows"]
+        if seleccionadas:
+            historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
+            historial.to_csv(historial_path, index=False)
+            st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
             st.rerun()
         else:
             st.warning("No se seleccionaron filas para eliminar.")

@@ -1,9 +1,9 @@
-streamlit
 numpy
 pandas
+ipywidgets
 joblib
-plotly
-openpyxl
-xlsxwriter
-pytz
+streamlit
 scikit-learn
+plotly
+pytz
+ag-grid-widget
