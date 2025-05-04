@@ -23,7 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
-    pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "PC real", "Analista"]).to_csv(historial_path, index=False)
+    pd.DataFrame(columns=["FechaHora", "Analista", "Cenizas", "PC", "PC real" ]).to_csv(historial_path, index=False)
 
 # Título
 st.title("🔥 Predicción del Poder Calorífico del Carbón")
@@ -193,36 +193,18 @@ if not historial.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Resumen de predicciones recientes (últimos 20)
+    # Tabla editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]].copy()
-    historial_df.insert(0, "Eliminar", False)
 
-    # Renombrar columnas para presentación
-    historial_df.rename(columns={
-        "FechaHora": "Fecha",
-        "PC": "PC predicción",
-        "PC real": "PC real",
-        "Diferencia": "Diferencia"
-    }, inplace=True)
-
+    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia" ]]
+    historial_df[0, "Eliminar"] = False
     edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
 
-    # Eliminar filas seleccionadas
     if st.button("❌ Eliminar seleccionadas"):
         eliminadas = edited_df[edited_df["Eliminar"] == True]
         if not eliminadas.empty:
-            historial_df_filtrado = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-
-            # Renombrar columnas a los nombres originales antes de guardar
-            historial_df_filtrado.rename(columns={
-                "Fecha": "FechaHora",
-                "PC predicción": "PC",
-                "PC real": "PC real",
-                "Diferencia": "Diferencia"
-            }, inplace=True)
-
-            historial_df_filtrado.to_csv(historial_path, index=False)
+            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+            historial_df.to_csv(historial_path, index=False)
             st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
             st.rerun()
         else:
