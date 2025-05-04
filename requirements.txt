@@ -6,4 +6,4 @@ streamlit
 scikit-learn
 plotly
 pytz
-aggrid
+streamlit-aggrid
