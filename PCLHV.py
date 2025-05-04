@@ -202,19 +202,45 @@ if not historial.empty:
     # Tabla editable
     st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
 
-    historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]]
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+# Renombrar columnas para visualización más clara
+historial_df = historial[["FechaHora", "Analista", "Cenizas", "PC", "PC real", "Diferencia"]].copy()
+historial_df = historial_df.rename(columns={
+    "FechaHora": "📅 Fecha y Hora",
+    "Analista": "👤 Analista",
+    "Cenizas": "🌫️ Cenizas (%)",
+    "PC": "🔥 PC Predicho",
+    "PC real": "✅ PC Real",
+    "Diferencia": "🔁 Diferencia (kcal/kg)"
+})
 
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
+# Columna de eliminación como checkbox
+historial_df["❌ Eliminar"] = False
+
+# Editor con mejoras visuales
+edited_df = st.data_editor(
+    historial_df,
+    use_container_width=True,
+    column_config={
+        "🔥 PC Predicho": st.column_config.NumberColumn(format="%.0f"),
+        "✅ PC Real": st.column_config.NumberColumn(format="%.0f"),
+        "🌫️ Cenizas (%)": st.column_config.NumberColumn(format="%.2f"),
+        "🔁 Diferencia (kcal/kg)": st.column_config.NumberColumn(format="%.1f"),
+    },
+    num_rows="dynamic",
+    key="tabla_predicciones"
+)
+
+# Eliminar filas seleccionadas
+if st.button("❌ Eliminar seleccionadas"):
+    eliminadas = edited_df[edited_df["❌ Eliminar"] == True]
+    if not eliminadas.empty:
+        historial_df = edited_df[edited_df["❌ Eliminar"] == False].drop(columns=["❌ Eliminar"])
+        historial_df.to_csv(historial_path, index=False)
+        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+        st.rerun()
+    else:
+        st.warning("No se seleccionaron filas para eliminar.")
+
 
     # Descargar Excel
     st.subheader("📥 Descargar historial completo")
