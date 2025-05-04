@@ -23,6 +23,7 @@ modelo = joblib.load("PC_0.8722_12.04.pkl")
 # Ruta para historial
 historial_path = "historial_predicciones.csv"
 if not os.path.exists(historial_path):
+    # Crear archivo vacío con las columnas adecuadas
     pd.DataFrame(columns=["FechaHora", "Cenizas", "PC", "PC real", "Analista"]).to_csv(historial_path, index=False)
 
 # Título
@@ -96,7 +97,14 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "Analista": analista
     }])
 
+    # Cargar historial
     historial = pd.read_csv(historial_path)
+
+    # Asegurarse de que la columna "PC real" exista
+    if "PC real" not in historial.columns:
+        historial["PC real"] = None
+
+    # Concatenar nueva predicción y actualizar el historial
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
