@@ -211,15 +211,18 @@ if not historial.empty:
         reload_data=True
     )
 
-    if st.button("❌ Eliminar seleccionadas"):
-        seleccionadas = grid_response["selected_rows"]
-        if seleccionadas:
-            historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
-            historial.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
+if st.button("❌ Eliminar seleccionadas"):
+    seleccionadas = grid_response["selected_rows"]
+    if len(seleccionadas) > 0:
+        historial = historial[~historial["FechaHora"].isin([row["FechaHora"] for row in seleccionadas])]
+        historial.to_csv(historial_path, index=False)
+        st.success(f"Se eliminaron {len(seleccionadas)} predicciones.")
+        st.rerun()
+    else:
+        st.warning("No se seleccionaron filas para eliminar.")
+
+
+
 
     st.subheader("📥 Descargar historial completo")
     df_completo = pd.read_csv(historial_path)
