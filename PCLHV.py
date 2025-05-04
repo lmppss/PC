@@ -120,7 +120,6 @@ historial["Diferencia"] = np.where(
     pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
     np.nan
 )
-)
 
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
