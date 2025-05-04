@@ -59,6 +59,7 @@ if st.session_state.mostrar_manual:
     cl_carbon = st.number_input("Cl carbón (%)", min_value=0.0)
 
 # Validación
+
 def validar_entrada(entrada):
     entrada = entrada.replace(",", ".")
     if entrada == "":
@@ -92,107 +93,98 @@ if st.button("🔮 Predecir Poder Calorífico"):
         "FechaHora": ahora_lima.strftime('%Y-%m-%d %H:%M:%S'),
         "Cenizas": valores[0],
         "PC": pc_entero,
-        "PC real": None,  # Inicialmente vacío
+        "PC real": None,
         "Analista": analista
     }])
 
-    # Cargar historial
     historial = pd.read_csv(historial_path)
 
-    # Asegurar que columnas necesarias existen
     if "PC real" not in historial.columns:
         historial["PC real"] = None
 
-    # Concatenar nueva fila y guardar
     historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
 historial = pd.read_csv(historial_path)
-
-# Asegurar columnas
 if "PC real" not in historial.columns:
     historial["PC real"] = None
 
-# Calcular diferencia si hay PC real
-historial["Diferencia"] = np.where(
-    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+# Gráfico
+historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
+historial = historial.sort_values("FechaHora").tail(20)
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=historial["FechaHora"],
+    y=historial["PC"],
+    mode="lines",
+    name="Tendencia PC",
+    line=dict(color="orange", width=2)
+))
+fig.add_trace(go.Scatter(
+    x=historial["FechaHora"],
+    y=historial["PC"],
+    mode="markers",
+    name="Predicciones",
+    marker=dict(
+        size=historial["Cenizas"] * 2,
+        color=historial["PC"],
+        colorscale="YlOrRd",
+        colorbar=dict(title="PC (kcal/kg)", len=0.75),
+        showscale=True,
+        line=dict(width=0.5, color='white')
+    ),
+    text=[
+        f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
+        for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
+    ],
+    hoverinfo="text"
+))
+fig.update_layout(
+    title="Poder Calorífico vs Fecha (ultimos 20 registros)",
+    xaxis_title="Fecha y Hora",
+    yaxis_title="Poder Calorífico (kcal/kg)",
+    template="plotly_dark",
+    hovermode="closest",
+    height=500
+)
+st.plotly_chart(fig, use_container_width=True)
+
+# Tabla editable
+st.subheader("📃 Resumen de predicciones recientes (ultimos 20)")
+historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Analista"]].copy()
+historial_df["Eliminar"] = False
+
+edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
+
+edited_df["Diferencia"] = np.where(
+    pd.to_numeric(edited_df["PC real"], errors='coerce').notna(),
+    pd.to_numeric(edited_df["PC real"], errors='coerce') - edited_df["PC"],
     np.nan
 )
 
-if not historial.empty:
-    st.subheader("📈 Historial de Predicciones (últimos 20)")
-    historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
-    historial = historial.sort_values("FechaHora").tail(20)
+st.dataframe(edited_df[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]])
 
-    fig = go.Figure()
+if st.button("📂 Guardar cambios y/o eliminar seleccionadas"):
+    eliminadas = edited_df[edited_df["Eliminar"] == True]
+    historial_actualizado = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
+    historial_actualizado.to_csv(historial_path, index=False)
+    if not eliminadas.empty:
+        st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
+    else:
+        st.success("Cambios guardados correctamente.")
+    st.rerun()
 
-    fig.add_trace(go.Scatter(
-        x=historial["FechaHora"],
-        y=historial["PC"],
-        mode="lines",
-        name="Tendencia PC",
-        line=dict(color="orange", width=2)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=historial["FechaHora"],
-        y=historial["PC"],
-        mode="markers",
-        name="Predicciones",
-        marker=dict(
-            size=historial["Cenizas"] * 2,
-            color=historial["PC"],
-            colorscale="YlOrRd",
-            colorbar=dict(title="PC (kcal/kg)", len=0.75),
-            showscale=True,
-            line=dict(width=0.5, color='white')
-        ),
-        text=[
-            f"Analista: {a}<br>PC: {pc:.0f} kcal/kg<br>Cenizas: {cen:.2f}%"
-            for a, pc, cen in zip(historial["Analista"], historial["PC"], historial["Cenizas"])
-        ],
-        hoverinfo="text"
-    ))
-
-    fig.update_layout(
-        title="Poder Calorífico vs Fecha (últimos 20 registros)",
-        xaxis_title="Fecha y Hora",
-        yaxis_title="Poder Calorífico (kcal/kg)",
-        template="plotly_dark",
-        hovermode="closest",
-        height=500
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Tabla editable
-    st.subheader("🗃️ Resumen de predicciones recientes (últimos 20)")
-
-    historial_df = historial[["FechaHora", "Cenizas", "PC", "PC real", "Diferencia", "Analista"]]
-    historial_df["Eliminar"] = False
-    edited_df = st.data_editor(historial_df, num_rows="dynamic", use_container_width=True)
-
-    if st.button("❌ Eliminar seleccionadas"):
-        eliminadas = edited_df[edited_df["Eliminar"] == True]
-        if not eliminadas.empty:
-            historial_df = edited_df[edited_df["Eliminar"] == False].drop(columns=["Eliminar"])
-            historial_df.to_csv(historial_path, index=False)
-            st.success(f"Se eliminaron {len(eliminadas)} predicciones.")
-            st.rerun()
-        else:
-            st.warning("No se seleccionaron filas para eliminar.")
-
-    # Descargar Excel
-    st.subheader("📥 Descargar historial completo")
-    df_completo = pd.read_csv(historial_path)
-    buffer = BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_completo.to_excel(writer, index=False, sheet_name='Historial')
-    st.download_button(
-        label="📄 Descargar en Excel",
-        data=buffer.getvalue(),
-        file_name="historial_predicciones.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Descargar Excel
+st.subheader("📅 Descargar historial completo")
+df_completo = pd.read_csv(historial_path)
+buffer = BytesIO()
+with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+    df_completo.to_excel(writer, index=False, sheet_name='Historial')
+st.download_button(
+    label="📄 Descargar en Excel",
+    data=buffer.getvalue(),
+    file_name="historial_predicciones.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
