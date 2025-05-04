@@ -121,49 +121,32 @@ historial["Diferencia"] = np.where(
     np.nan
 )
 
-# Botón para ingresar PC real
-if st.button("💡 Ingresar PC real"):
-    # Selección de fecha
-    fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
-    if fechas_disponibles:
-        fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles)
-        pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0)
+# NUEVO BLOQUE ACTUALIZADO: Ingreso manual de PC real
+st.subheader("📝 Ingresar PC real manualmente")
 
-        if st.button("📥 Cargar PC real"):
-            if pc_real_input:
-                # Actualizar el valor de "PC real" en el historial
-                historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
+fechas_disponibles = historial[historial["PC real"].isna()]["FechaHora"].tolist()
+if fechas_disponibles:
+    fecha_seleccionada = st.selectbox("Seleccione la fecha de la predicción:", fechas_disponibles, key="select_fecha")
+    pc_real_input = st.number_input("Ingrese el PC real para esta fecha:", min_value=0, key="input_pc_real")
+    if st.button("📥 Cargar PC real"):
+        if pc_real_input > 0:
+            historial.loc[historial["FechaHora"] == fecha_seleccionada, "PC real"] = pc_real_input
 
-                # Recálculo de la diferencia
-                historial["Diferencia"] = np.where(
-                    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-                    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
-                    np.nan
-                )
+            # Recalcular la diferencia
+            historial["Diferencia"] = np.where(
+                pd.to_numeric(historial["PC real"], errors='coerce').notna(),
+                pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
+                np.nan
+            )
 
-                # Guardar el historial actualizado
-                historial.to_csv(historial_path, index=False)
-                st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
-            else:
-                st.warning("Por favor, ingrese un valor válido para el PC real.")
-    else:
-        st.info("No hay predicciones pendientes de PC real para actualizar.")
+            historial.to_csv(historial_path, index=False)
+            st.success(f"✅ PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
+        else:
+            st.warning("⚠️ Ingrese un valor válido para el PC real.")
+else:
+    st.info("🎉 No hay predicciones pendientes para actualizar PC real.")
 
-                # Guardar el historial actualizado
-                historial.to_csv(historial_path, index=False)
-                st.success(f"PC real de {fecha_seleccionada} actualizado a {pc_real_input} kcal/kg.")
-            else:
-                st.warning("Por favor, ingrese un valor válido para el PC real.")
-    else:
-        st.info("No hay predicciones pendientes de PC real para actualizar.")
-
-# Recálculo de la diferencia
-historial["Diferencia"] = np.where(
-    pd.to_numeric(historial["PC real"], errors='coerce').notna(),
-    pd.to_numeric(historial["PC real"], errors='coerce') - historial["PC"],
-    np.nan
-)
-
+# Gráfico
 if not historial.empty:
     st.subheader("📈 Historial de Predicciones (últimos 20)")
     historial["FechaHora"] = pd.to_datetime(historial["FechaHora"], errors='coerce')
