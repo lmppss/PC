@@ -104,7 +104,7 @@ if st.button("🔮 Predecir Poder Calorífico"):
         historial["PC real"] = None
 
     # Concatenar nueva fila y guardar
-    historial = pd.concat([historial, nuevo], ignore_index=True).tail(20)
+    historial = pd.concat([historial, nuevo], ignore_index=True)
     historial.to_csv(historial_path, index=False)
 
 # Leer historial
