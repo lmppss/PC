@@ -1,11 +1,7 @@
 streamlit
-xlsxwriter
 numpy
 pandas
-ipywidgets
 joblib
-streamlit
-scikit-learn
-plotly
 pytz
-streamlit-aggri
+plotly
+xlsxwriter
