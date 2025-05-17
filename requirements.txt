@@ -5,3 +5,6 @@ joblib
 pytz
 plotly
 xlsxwriter
+scikit-learn
+joblib
+xgboost
