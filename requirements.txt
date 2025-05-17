@@ -1,3 +1,5 @@
+streamlit
+xlsxwriter
 numpy
 pandas
 ipywidgets
@@ -6,4 +8,4 @@ streamlit
 scikit-learn
 plotly
 pytz
-streamlit-aggrid
+streamlit-aggri
